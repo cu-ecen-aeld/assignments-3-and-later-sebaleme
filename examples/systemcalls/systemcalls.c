@@ -63,6 +63,10 @@ bool do_exec(int count, ...)
 
     printf("Entering test: %s\n", command[1]);
     int status;
+    // Since fork copies the parents entire memory space, file descriptor state, etc, it will also copy the 
+    // buffered data that needs to be printed. Hence both processes will print out what has been buffered. 
+    // To avoid this, we force the print action before the fork() 
+    fflush(stdout);
 
     // Once we fork, 2 process will continue the execution. The child process takes over the parent process state 
     // and begin execution at line 57
@@ -131,6 +135,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // allows to redirect the text to it.
     int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
     if (fd < 0) { perror("open"); return false; }
+    fflush(stdout);
 
     pid_t pid = fork();
     if(pid < 0)
