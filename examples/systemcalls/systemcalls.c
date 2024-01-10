@@ -1,4 +1,8 @@
 #include "systemcalls.h"
+#include <fcntl.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -17,7 +21,8 @@ bool do_system(const char *cmd)
  *   or false() if it returned a failure
 */
 
-    return true;
+    int val = system(cmd);
+    return val == -1? false : true;
 }
 
 /**
@@ -36,18 +41,15 @@ bool do_system(const char *cmd)
 
 bool do_exec(int count, ...)
 {
+    bool result = false;
     va_list args;
     va_start(args, count);
     char * command[count+1];
-    int i;
-    for(i=0; i<count; i++)
+    for(int i=0; i<count; i++)
     {
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
 
 /*
  * TODO:
@@ -59,9 +61,44 @@ bool do_exec(int count, ...)
  *
 */
 
-    va_end(args);
+    printf("Entering test: %s\n", command[1]);
+    int status;
 
-    return true;
+    // Once we fork, 2 process will continue the execution. The child process takes over the parent process state 
+    // and begin execution at line 57
+    pid_t pid = fork();
+    if(pid < 0)
+    {
+            fprintf(stderr, "Fork failed");
+            return false;
+    }
+    else if(pid == 0) 
+    {
+        // It is important to remember that the child process has the same code than its parent, 
+        // and we can only differentiate them by their PID. This branch of the if is never reached 
+        // by the parent process, only by the child process
+        printf("Child pid is %d\n", pid);
+        int ret = execv(command[0], command);
+        if (ret < 0)
+        { 
+            // It is really important to stop the child process here, otherwise you get strange behavior,
+            // like the tests run a second time
+            exit(1);
+            return false;
+        }
+        // execv() returns -1 if an error occured, else never returns. So this line should never be reached 
+        exit(1);
+    }
+    else
+    {
+        // After the fork, the parent process comes here and wait for the child process to finish
+        wait(&status);
+        result = WEXITSTATUS(status) == 0 && WIFEXITED(status);
+    }
+
+    va_end(args);
+    printf("do_exec test result: %d\n", result);
+    return result;
 }
 
 /**
@@ -72,28 +109,62 @@ bool do_exec(int count, ...)
 bool do_exec_redirect(const char *outputfile, int count, ...)
 {
     va_list args;
+    bool result = false;
     va_start(args, count);
     char * command[count+1];
-    int i;
+    int i, status, ret = 0;
     for(i=0; i<count; i++)
     {
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
-
 
 /*
  * TODO
- *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
+ *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a reference,
  *   redirect standard out to a file specified by outputfile.
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    // The trick here is to set the file at the file descriptor ID=1. FD=1 should be the standard output,
+    // so now echo will output the text there. The fact that standard output file descriptor points to the file  
+    // allows to redirect the text to it.
+    int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+    if (fd < 0) { perror("open"); return false; }
+
+    pid_t pid = fork();
+    if(pid < 0)
+    {
+            fprintf(stderr, "Fork failed");
+    }
+    // Code for the child process
+    else if(pid == 0) 
+    {
+        printf("Child pid is %d\n", pid);
+        if (dup2(fd, 1) < 0)
+        { 
+            perror("dup2");
+            return false; 
+        }
+        close(fd);
+        ret = execv(command[0], command);
+        if (ret < 0)
+        {
+            // execv() returns -1 if an error occured, else never returns
+            exit(1);
+            return false;
+        }
+        exit(1);
+    }
+    // Code for the parent process
+    else
+    {
+        wait(&status);
+        result = WEXITSTATUS(status) == 0 && WIFEXITED(status);
+    }
+
 
     va_end(args);
 
-    return true;
+    return result;
 }
