@@ -4,7 +4,7 @@
 # ========================================== 
 
 # For X-Compilation, define the variable as follow before running the make command
-# export CROSS_COMPILE=aarch64-none-linux-gnu-
+export CROSS_COMPILE=aarch64-none-linux-gnu-
 CC = $(CROSS_COMPILE)gcc
 OBJ = writer
 
