@@ -125,7 +125,10 @@ make
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 echo "========== Copy the finder on the target rootfs =========="
-cp -r * ${OUTDIR}/roofs/home
+cp -rf ${REPO}finder-app/. ${OUTDIR}/roofs/home/
+# Fix to solve the conf simlink
+rm ${OUTDIR}/roofs/home/conf && mkdir ${OUTDIR}/roofs/home/conf
+cp -r ${REPO}conf/. ${OUTDIR}/roofs/home/conf/
 
 # TODO: Chown the root directory
 # On the target, only the root user is known
@@ -138,3 +141,13 @@ sudo apt-get install cpio
 cd "${OUTDIR}/roofs"
 find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
 gzip -f ${OUTDIR}/initramfs.cpio
+
+# How to test:
+# cd ${OUTDIR}
+# ./assignments-3-and-later-sebaleme/finder-app/start-qemu-terminal.sh ${OUTDIR}
+
+# Currently getting error
+# /home # ./start-qemu-app.sh
+# /bin/sh: ./start-qemu-app.sh: not found
+# This works however:
+# /home # sh start-qemu-app.sh
