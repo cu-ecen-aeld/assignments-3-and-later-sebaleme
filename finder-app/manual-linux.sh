@@ -12,7 +12,8 @@ BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
-XCOMPILER_PATH=/data/aeld/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/
+XCOMPILER_PATH=/data/aeld/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu
+XCOMPILER_PATH_RUNNER=/mnt/data/lsm1so/aeld/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu
 REPO=${OUTDIR}/assignments-3-and-later-sebaleme/
 
 if [ $# -lt 1 ]
@@ -106,10 +107,17 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
 echo "========== Add library dependencies to rootfs =========="
-cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/roofs/lib
-cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libm.so.6 ${OUTDIR}/roofs/lib64
-cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libresolv.so.2 ${OUTDIR}/roofs/lib64
-cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libc.so.6 ${OUTDIR}/roofs/lib64
+if [ -d "${XCOMPILER_PATH}" ]; then
+    cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/roofs/lib
+    cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libm.so.6 ${OUTDIR}/roofs/lib64
+    cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libresolv.so.2 ${OUTDIR}/roofs/lib64
+    cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libc.so.6 ${OUTDIR}/roofs/lib64
+else # Native linux path in case using the docker container from github
+    cp ${XCOMPILER_PATH_RUNNER}/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/roofs/lib
+    cp ${XCOMPILER_PATH_RUNNER}/aarch64-none-linux-gnu/libc/lib64/libm.so.6 ${OUTDIR}/roofs/lib64
+    cp ${XCOMPILER_PATH_RUNNER}/aarch64-none-linux-gnu/libc/lib64/libresolv.so.2 ${OUTDIR}/roofs/lib64
+    cp ${XCOMPILER_PATH_RUNNER}/aarch64-none-linux-gnu/libc/lib64/libc.so.6 ${OUTDIR}/roofs/lib64
+fi
 
 # TODO: Make device nodes
 # c means character device type
