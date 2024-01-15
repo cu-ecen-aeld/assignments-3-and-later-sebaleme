@@ -27,10 +27,13 @@ mkdir -p ${OUTDIR}
 
 cd "$OUTDIR"
 # Could not clone repo from professional desktop due to proxy, so using tar file with 5.1.10
+# https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/refs/tags
 if [ ! -d "${OUTDIR}/linux-5.1.10" ]; then
     #Clone only if the repository does not exist.
 	echo "CLONING GIT LINUX STABLE VERSION ${KERNEL_VERSION} IN ${OUTDIR}"
-	git clone ${KERNEL_REPO} --depth 1 --single-branch --branch ${KERNEL_VERSION}
+	# git clone ${KERNEL_REPO} --depth 1 --single-branch --branch ${KERNEL_VERSION}
+    wget https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/snapshot/linux-5.1.10.tar.gz
+    tar xvf linux-5.1.10.tar.gz
 fi
 if [ ! -e ${OUTDIR}/linux-5.1.10/arch/${ARCH}/boot/Image ]; then
     cd linux-5.1.10
@@ -38,8 +41,8 @@ if [ ! -e ${OUTDIR}/linux-5.1.10/arch/${ARCH}/boot/Image ]; then
     #git checkout ${KERNEL_VERSION}
 
     # TODO: Add your kernel build steps here
-    # Generated .config file
-    make menuconfig
+    # Generated .config file (dont use menuconfig which requires user input)
+    # make menuconfig
     # Dont forget to add the Xcompiler path to the PATH env variable and install the bc package
     # bc is a language that supports arbitrary precision numbers with interactive execution of statements.
     export PATH=$PATH:${XCOMPILER_PATH}bin/
@@ -78,7 +81,8 @@ mkdir -p var/log
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/busybox" ]
 then
-git clone https://git.busybox.net/busybox.git
+    # Using github mirror, because https://git.busybox.net/busybox.git not responding
+    git clone https://github.com/mirror/busybox.git
     cd busybox
     git checkout ${BUSYBOX_VERSION}
     # TODO:  Configure busybox
