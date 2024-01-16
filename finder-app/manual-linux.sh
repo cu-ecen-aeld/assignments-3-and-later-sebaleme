@@ -13,7 +13,7 @@ FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
 XCOMPILER_PATH=${OUTDIR}/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu
-REPO=${OUTDIR}/assignments-3-and-later-sebaleme/
+REPO=${OUTDIR}/assignments-3-and-later-sebaleme
 
 if [ $# -lt 1 ]
 then
@@ -133,17 +133,19 @@ sudo mknod -m 666 dev/console c 5 1
 
 # TODO: Clean and build the writer utility
 echo "========== Clean and build the writer utility =========="
-cd ${REPO}finder-app
+cd "$OUTDIR"
+git clone https://github.com/cu-ecen-aeld/assignments-3-and-later-sebaleme.git
+cd ${REPO}/finder-app
 make clean
 make
 
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 echo "========== Copy the finder on the target rootfs =========="
-cp -rf ${REPO}finder-app/. ${OUTDIR}/rootfs/home/
+cp -rf ${REPO}/finder-app/. ${OUTDIR}/rootfs/home/
 # Fix to solve the conf simlink
 rm ${OUTDIR}/rootfs/home/conf && mkdir ${OUTDIR}/rootfs/home/conf
-cp -r ${REPO}conf/. ${OUTDIR}/rootfs/home/conf/
+cp -r ${REPO}/conf/. ${OUTDIR}/rootfs/home/conf/
 
 # TODO: Chown the root directory
 # On the target, only the root user is known
