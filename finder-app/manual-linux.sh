@@ -21,6 +21,7 @@ then
 else
 	OUTDIR=$1
 	echo "Using passed directory ${OUTDIR} for output"
+    XCOMPILER_PATH=${OUTDIR}/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu
 fi
 
 mkdir -p ${OUTDIR}
@@ -57,6 +58,7 @@ fi
 # Download XCompiler if not already available
 if [ ! -d $XCOMPILER_PATH ]; then
     echo "========== Download XCompiler =========="
+    cd ${OUTDIR}
     wget "https://developer.arm.com/-/media/Files/downloads/gnu-a/10.3-2021.07/binrel/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu.tar.xz"
     tar xvf gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu.tar.xz
 else
