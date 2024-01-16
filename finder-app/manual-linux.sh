@@ -78,7 +78,7 @@ then
     sudo rm -rf ${OUTDIR}/rootfs
 fi
 # TODO: Create necessary base directories
-mkdir ${OUTDIR}/roofs && cd ${OUTDIR}/roofs
+mkdir ${OUTDIR}/rootfs && cd ${OUTDIR}/rootfs
 mkdir -p bin dev etc home lib lib64 proc sbin sys tmp usr var
 mkdir -p usr/bin usr/lib usr/sbin
 mkdir -p var/log
@@ -102,27 +102,30 @@ export PATH=$PATH:${XCOMPILER_PATH}/bin/
 make distclean
 make defconfig
 make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}
-make CONFIG_PREFIX=${OUTDIR}/roofs ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} install
+make CONFIG_PREFIX=${OUTDIR}/rootfs ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} install
 
 echo "========== Library dependencies =========="
 # Here, we move to the rootfs directory
-cd ${OUTDIR}/roofs
+cd ${OUTDIR}/rootfs
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
 echo "========== Add library dependencies to rootfs =========="
-cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/roofs/lib
-cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libm.so.6 ${OUTDIR}/roofs/lib64
-cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libresolv.so.2 ${OUTDIR}/roofs/lib64
-cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libc.so.6 ${OUTDIR}/roofs/lib64
+# On my local docker, this file is requested, but not in the runner?
+if [ -e ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1 ]; then
+    cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
+fi
+cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
+cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
+cp ${XCOMPILER_PATH}/aarch64-none-linux-gnu/libc/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
 
 # TODO: Make device nodes
 # c means character device type
 echo "========== Make device nodes =========="
-rm -rf ${OUTDIR}/roofs/dev/null
+rm -rf ${OUTDIR}/rootfs/dev/null
 sudo mknod -m 666 dev/null c 1 3
-rm -rf ${OUTDIR}/roofs/dev/console
+rm -rf ${OUTDIR}/rootfs/dev/console
 sudo mknod -m 666 dev/console c 5 1
 
 
@@ -135,20 +138,20 @@ make
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 echo "========== Copy the finder on the target rootfs =========="
-cp -rf ${REPO}finder-app/. ${OUTDIR}/roofs/home/
+cp -rf ${REPO}finder-app/. ${OUTDIR}/rootfs/home/
 # Fix to solve the conf simlink
-rm ${OUTDIR}/roofs/home/conf && mkdir ${OUTDIR}/roofs/home/conf
-cp -r ${REPO}conf/. ${OUTDIR}/roofs/home/conf/
+rm ${OUTDIR}/rootfs/home/conf && mkdir ${OUTDIR}/rootfs/home/conf
+cp -r ${REPO}conf/. ${OUTDIR}/rootfs/home/conf/
 
 # TODO: Chown the root directory
 # On the target, only the root user is known
 echo "========== Chown the root directory =========="
-sudo chown root:root ${OUTDIR}/roofs
+sudo chown root:root ${OUTDIR}/rootfs
 
 # TODO: Create initramfs.cpio.gz
 echo "========== Create initramfs.cpio.gz =========="
 sudo apt-get install cpio
-cd "${OUTDIR}/roofs"
+cd "${OUTDIR}/rootfs"
 find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
 gzip -f ${OUTDIR}/initramfs.cpio
 
