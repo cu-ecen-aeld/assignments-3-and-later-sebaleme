@@ -5,7 +5,15 @@
 set -e
 set -u
 
+echo "========== Initialize global variables =========="
 OUTDIR=/data/aeld
+if [ $# -lt 1 ]
+then
+	echo "Using default directory ${OUTDIR} for output"
+else
+	OUTDIR=$1
+	echo "Using passed directory ${OUTDIR} for output"
+fi
 KERNEL_REPO=http://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 KERNEL_VERSION=v5.1.10
 BUSYBOX_VERSION=1_33_1
@@ -14,15 +22,6 @@ ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
 XCOMPILER_PATH=${OUTDIR}/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu
 REPO=${OUTDIR}/assignments-3-and-later-sebaleme
-
-if [ $# -lt 1 ]
-then
-	echo "Using default directory ${OUTDIR} for output"
-else
-	OUTDIR=$1
-	echo "Using passed directory ${OUTDIR} for output"
-    XCOMPILER_PATH=${OUTDIR}/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu
-fi
 
 mkdir -p ${OUTDIR}
 
