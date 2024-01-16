@@ -134,7 +134,10 @@ sudo mknod -m 666 dev/console c 5 1
 # TODO: Clean and build the writer utility
 echo "========== Clean and build the writer utility =========="
 cd "$OUTDIR"
-git clone https://github.com/cu-ecen-aeld/assignments-3-and-later-sebaleme.git
+if [ ! -d "${REPO}" ];
+then
+    git clone https://github.com/cu-ecen-aeld/assignments-3-and-later-sebaleme.git
+fi
 cd ${REPO}/finder-app
 make clean
 make
