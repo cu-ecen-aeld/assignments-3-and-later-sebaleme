@@ -19,7 +19,7 @@ void* threadfunc(void* thread_param)
     // Cast input param back to a useful type
     struct thread_data* thread_func_args = (struct thread_data *) thread_param;
     // Wait
-    usleep(thread_func_args->wait_to_obtain_ms);
+    usleep(thread_func_args->wait_to_obtain_ms*1000);
     // Obtain mutex
     int rc = pthread_mutex_lock(thread_func_args->mutex);
     if(rc != 0)
@@ -27,7 +27,7 @@ void* threadfunc(void* thread_param)
         DEBUG_LOG("[CHILD TREAD] could not get mutex");
     }
     // Wait
-    usleep(thread_func_args->wait_to_release_ms);
+    usleep(thread_func_args->wait_to_release_ms*1000);
     // Release mutex
     rc = pthread_mutex_unlock(thread_func_args->mutex);
     if(rc != 0)
