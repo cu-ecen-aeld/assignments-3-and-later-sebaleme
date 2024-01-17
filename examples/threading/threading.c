@@ -60,7 +60,12 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
     // Create thread with default configuration
     int rc = pthread_create(thread, NULL, threadfunc, thread_data_ptr);
     printf("pthread_create return value: %d and thread ID is now %ld\n", rc, *thread);
-    // We don t need to free the dynamic allocated struct, it is done in the test
+    // Need to free the dynamic allocated struct if pthread creation fails
+    if(rc != 0)
+    {
+        free(thread_data_ptr);
+    }
+
     return rc == 0;
 }
 
