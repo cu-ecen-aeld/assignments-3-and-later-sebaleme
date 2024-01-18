@@ -63,6 +63,8 @@ done
 # Use sh to make it work on target
 OUTPUTSTRING=$(sh finder.sh "$WRITEDIR" "$WRITESTR")
 
+echo ${OUTPUTSTRING} > /tmp/assignment4-result.txt
+
 # remove temporary directories
 rm -rf /tmp/aeld-data
 
