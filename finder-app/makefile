@@ -8,6 +8,9 @@ export CROSS_COMPILE=aarch64-none-linux-gnu-
 CC = $(CROSS_COMPILE)gcc
 OBJ = writer
 
+# This is our default rule, so must come first
+all: writermake
+
 # Executing make with no argument will execute the first command only
 writermake: writer.c
 	$(CC) -g -Wall -o $(OBJ) writer.c
