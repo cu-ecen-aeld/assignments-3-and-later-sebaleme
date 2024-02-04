@@ -1,7 +1,10 @@
 /* Copyright (c) 2024 Sebastien Lemetter
  * aesdsocket.c: Create a socket connection
  * ========================================== */
+#include <errno.h>
 #include <netdb.h>
+#include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -71,13 +74,18 @@ int main()
         }
         if (bytes_num == -1)
         {
-            syslog(LOG_ERROR, "Value of errno attempting to receive data from %d.%d.%d.%d: %d\n", ip[0], ip[1], ip[2], ip[3], errno);
+            syslog(LOG_ERR, "Value of errno attempting to receive data from %d.%d.%d.%d: %d\n", ip[0], ip[1], ip[2], ip[3], errno);
             break;
         }
         // Store the last received packet in target file
-        fprintf( fp, buffer);
+        fprintf(fp, "%s", buffer);
         // Send the full received content as acknowledgement
         int bytes_sent = send(socket_fd, buffer, 200, 0);
+        if (bytes_sent == -1)
+        {
+            syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", ip[0], ip[1], ip[2], ip[3], errno);
+            break;
+        }
     }
     syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
 

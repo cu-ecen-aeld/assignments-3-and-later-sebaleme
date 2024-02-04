@@ -4,7 +4,10 @@
 # ========================================== 
 
 # For X-Compilation, define the variable as follow before running the make command
-export CROSS_COMPILE=aarch64-none-linux-gnu-
+# export CROSS_COMPILE=aarch64-none-linux-gnu-
+# and append the PATH env variable as following
+# export PATH=$PATH:/mnt/data/lsm1so/aeld/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin
+ 
 CC = $(CROSS_COMPILE)gcc
 OBJ = aesdsocket
 
