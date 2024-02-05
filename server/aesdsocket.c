@@ -61,7 +61,7 @@ int main()
     // and socket_fd remains the socket file descriptor, still listening for other connections
     // fd is the accepted socket, and will be used for sending/receiving data
     int fd;
-    while(fd = accept(socket_fd, (struct sockaddr *)&client_addr, &addr_size))
+    while((fd = accept(socket_fd, (struct sockaddr *)&client_addr, &addr_size)))
     {
         // Extracting client IP address from the socket address storage
         struct sockaddr_in *sin = (struct sockaddr_in *)&client_addr;
