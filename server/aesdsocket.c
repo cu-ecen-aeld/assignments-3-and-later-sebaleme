@@ -31,7 +31,7 @@ int main()
     remove(FILEPATH);
     // Total number of bytes and char array to be sent back to client
     int32_t len = 0;
-    char sendBuffer[6000] = {0};
+    char sendBuffer[60000] = {0};
     // Create socket and bind it to given port
     int socket_fd = socket(PF_INET, SOCK_STREAM, 0);
     struct addrinfo *my_addr;
@@ -74,19 +74,19 @@ int main()
         }
 
         // Create a new file to store the received packages
-        FILE *fp = NULL;
-        fp = fopen(FILEPATH, "a");
-        if (fp == NULL)
+        FILE *file = NULL;
+        file = fopen(FILEPATH, "a");
+        if (file == NULL)
         {
             syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
             return 1;
         }
 
         // Receive data from open port
-        char buffer[2000] = {0};
+        char buffer[20000] = {0};
         while (true)
         {
-            int bytes_num = recv(fd, buffer, 1000, 0);
+            int bytes_num = recv(fd, buffer, 20000, 0);
             if (bytes_num == 0)
             {
                 // 0 byte received, the connection was closed by the client
@@ -102,11 +102,11 @@ int main()
             // Store the last received packet in target file
             printf("Received %d bytes from client\n", bytes_num);
             len += bytes_num;
-            fprintf(fp, "%s", buffer);
+            fprintf(file, "%s", buffer);
             // Prepare sendBuffer
             strcat(sendBuffer, buffer);
             // Send the full received content as acknowledgement
-            printf("buffer contains: %d bytes:\n%s", bytes_num, sendBuffer);
+            printf("buffer contains: %d bytes:\n%s", len, sendBuffer);
             int bytes_sent = send(fd, sendBuffer, len, 0);
             if (bytes_sent == -1)
             {
@@ -115,6 +115,7 @@ int main()
                 break;
             }
         }
+        fclose(file);
         syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
         printf("Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
     }
