@@ -120,8 +120,10 @@ int main()
         printf("Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
     }
 
-    // Free my_addr once we are finished
+    // Free my_addr once we are finished and close the remaining file descriptors
     free(my_addr);
+    close(fd);
+    close(socket_fd);
 
     return 0;
 }

@@ -16,7 +16,7 @@ all: socketmake
 
 # Executing make with no argument will execute the first command only
 socketmake: aesdsocket.c
-	$(CC) -g -Wall -o $(OBJ) aesdsocket.c
+	$(CC) -g -Wall -Werror -o $(OBJ) aesdsocket.c
 
 .PHONY: clean
 
