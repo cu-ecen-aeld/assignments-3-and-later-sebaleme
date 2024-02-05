@@ -27,6 +27,11 @@
 int main()
 {
     printf("Entering server socket program\n");
+    // Delete output file if already exists
+    remove(FILEPATH);
+    // Total number of bytes and char array to be sent back to client
+    int32_t len = 0;
+    char sendBuffer[6000] = {0};
     // Create socket and bind it to given port
     int socket_fd = socket(PF_INET, SOCK_STREAM, 0);
     struct addrinfo *my_addr;
@@ -58,73 +63,60 @@ int main()
     int fd;
     while(fd = accept(socket_fd, (struct sockaddr *)&client_addr, &addr_size))
     {
-        // We can use either separate threads or new processes to handles client connections. 
-        // Threads are faster compared to forking new processes, but separated processes allow a better isolation.
-        int mypid = fork();
-        if(mypid < 0)
+        // Extracting client IP address from the socket address storage
+        struct sockaddr_in *sin = (struct sockaddr_in *)&client_addr;
+        unsigned char *client_ip = (unsigned char *)&sin->sin_addr.s_addr;
+        unsigned short int client_port = sin->sin_port;
+        if (fd != -1)
         {
-            syslog(LOG_ERR, "Failed to fork, errno value is: %d\n", errno);
-            return false;
+            printf("Accepted new connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
+            syslog(LOG_INFO, "Accepted connection from %d.%d.%d.%d", client_ip[0], client_ip[1], client_ip[2], client_ip[3]);
         }
-        // Code for the child process
-        else if(mypid == 0)
+
+        // Create a new file to store the received packages
+        FILE *fp = NULL;
+        fp = fopen(FILEPATH, "a");
+        if (fp == NULL)
         {
-            // Extracting client IP address from the socket address storage
-            struct sockaddr_in *sin = (struct sockaddr_in *)&client_addr;
-            unsigned char *client_ip = (unsigned char *)&sin->sin_addr.s_addr;
-            unsigned short int client_port = sin->sin_port;
-            if (fd != -1)
-            {
-                printf("Accepted new connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
-                syslog(LOG_INFO, "Accepted connection from %d.%d.%d.%d", client_ip[0], client_ip[1], client_ip[2], client_ip[3]);
-            }
-
-            // Create a new file to store the received packages
-            FILE *fp = NULL;
-            fp = fopen(FILEPATH, "a");
-            if (fp == NULL)
-            {
-                syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
-                return 1;
-            }
-
-            // Receive data from open port
-            char buffer[200] = {0};
-            char sendBuffer[200];
-            int32_t len = 0;  // Total number of bytes to be sent back to client
-            while (true)
-            {
-                int bytes_num = recv(fd, buffer, 200, 0);
-                if (bytes_num == 0)
-                {
-                    // 0 byte received, the connection was closed by the client
-                    break;
-                }
-                if (bytes_num == -1)
-                {
-                    // Errno 107 means that the socket is NOT connected (any more)
-                    syslog(LOG_ERR, "Value of errno attempting to receive data from %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
-                    printf("Could not receive data from client, ending receiving, errno is %d\n", errno);
-                    break;
-                }
-                // Store the last received packet in target file
-                printf("Received %d bytes from client\n", bytes_num);
-                len += bytes_num;
-                fprintf(fp, "%s", buffer);
-                // Send the full received content as acknowledgement
-                printf("buffer contains: %d bytes:\n %s", bytes_num, sendBuffer);
-                int bytes_sent = send(fd, buffer, len, 0);
-                if (bytes_sent == -1)
-                {
-                    syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
-                    printf("Could not send data to client, ending send, errno is %d\n", errno);
-                    break;
-                }
-            }
-            syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
-            printf("Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
-            exit(1);
+            syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
+            return 1;
         }
+
+        // Receive data from open port
+        char buffer[2000] = {0};
+        while (true)
+        {
+            int bytes_num = recv(fd, buffer, 1000, 0);
+            if (bytes_num == 0)
+            {
+                // 0 byte received, the connection was closed by the client
+                break;
+            }
+            if (bytes_num == -1)
+            {
+                // Errno 107 means that the socket is NOT connected (any more)
+                syslog(LOG_ERR, "Value of errno attempting to receive data from %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
+                printf("Could not receive data from client, ending receiving, errno is %d\n", errno);
+                break;
+            }
+            // Store the last received packet in target file
+            printf("Received %d bytes from client\n", bytes_num);
+            len += bytes_num;
+            fprintf(fp, "%s", buffer);
+            // Prepare sendBuffer
+            strcat(sendBuffer, buffer);
+            // Send the full received content as acknowledgement
+            printf("buffer contains: %d bytes:\n%s", bytes_num, sendBuffer);
+            int bytes_sent = send(fd, sendBuffer, len, 0);
+            if (bytes_sent == -1)
+            {
+                syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
+                printf("Could not send data to client, ending send, errno is %d\n", errno);
+                break;
+            }
+        }
+        syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
+        printf("Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
     }
 
     // Free my_addr once we are finished
