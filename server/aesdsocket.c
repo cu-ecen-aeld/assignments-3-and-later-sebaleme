@@ -25,29 +25,36 @@
 //     unsigned char      sin_zero[8]; // Same size as struct sockaddr
 // };
 
-int main()
+int main(int argc, char** argv)
 {
+    // Use the syslog for non interactive application
+    openlog("aesdsocket",0,LOG_USER);
     syslog(LOG_INFO, "Entering server socket program\n");
 
-    // creating child process to run the socket server as a daemon
-    int pid = fork();
-    // An error occurred
-    if (pid < 0)
-        exit(EXIT_FAILURE);
-    // Success: Let the parent terminate so grand parent can proceed
-    if (pid > 0)
-        exit(EXIT_SUCCESS);
+    // Run process as daemon if called with option -d
+    if((argc == 2)&&(argv[1][0] == '-')&&(argv[1][1] == 'd'))
+    {
+        // creating child process which is not attached to a TTY
+        int pid = fork();
+        // An error occurred
+        if (pid < 0)
+            exit(EXIT_FAILURE);
+        // Success: Let the parent terminate so grand parent can proceed
+        if (pid > 0)
+            exit(EXIT_SUCCESS);
 
-    // Create a new session so daemon is not linked to any tty
-    if (setsid() < 0)
-        exit(EXIT_FAILURE);
+        // Create a new session so daemon is not linked to any tty
+        if (setsid() < 0)
+            exit(EXIT_FAILURE);
 
-    // Change the working directory to the root directory so no possible error if unmount
-    chdir("/");
+        // Change the working directory to the root directory so no possible error if unmount
+        chdir("/");
 
-    // Redirect stdin, stdout and stderr to /dev/null, so our daemon won t communicate through a console
-    close(0); close(1); close(2);
-    open("/dev/null",O_RDWR); dup(0); dup(0);
+        // Redirect stdin, stdout and stderr to /dev/null, so our daemon won t communicate through a console
+        close(0); close(1); close(2);
+        open("/dev/null",O_RDWR); dup(0); dup(0);
+    }
+
 
     // Delete output file if already exists
     remove(FILEPATH);
@@ -141,6 +148,7 @@ int main()
     free(my_addr);
     close(fd);
     close(socket_fd);
+    closelog();
 
     return 0;
 }
