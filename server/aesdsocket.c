@@ -2,6 +2,7 @@
  * aesdsocket.c: Create a socket connection
  * ========================================== */
 #include <errno.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -26,7 +27,28 @@
 
 int main()
 {
-    printf("Entering server socket program\n");
+    syslog(LOG_INFO, "Entering server socket program\n");
+
+    // creating child process to run the socket server as a daemon
+    int pid = fork();
+    // An error occurred
+    if (pid < 0)
+        exit(EXIT_FAILURE);
+    // Success: Let the parent terminate so grand parent can proceed
+    if (pid > 0)
+        exit(EXIT_SUCCESS);
+
+    // Create a new session so daemon is not linked to any tty
+    if (setsid() < 0)
+        exit(EXIT_FAILURE);
+
+    // Change the working directory to the root directory so no possible error if unmount
+    chdir("/");
+
+    // Redirect stdin, stdout and stderr to /dev/null, so our daemon won t communicate through a console
+    close(0); close(1); close(2);
+    open("/dev/null",O_RDWR); dup(0); dup(0);
+
     // Delete output file if already exists
     remove(FILEPATH);
     // Total number of bytes and char array to be sent back to client
@@ -49,12 +71,12 @@ int main()
 
     // Assign an address to the socket
     bind(socket_fd, my_addr->ai_addr, sizeof(struct sockaddr));
-    printf("Socket created and binded, with file descriptor %d\n", socket_fd);
+    syslog(LOG_INFO, "Socket created and binded, with file descriptor %d\n", socket_fd);
 
     // Listen and accept connections
     struct sockaddr_storage client_addr;
     listen(socket_fd, BACKLOG);
-    printf("Listening to connections on %d\n", socket_fd);
+    syslog(LOG_INFO, "Listening to connections on %d\n", socket_fd);
     socklen_t addr_size = sizeof client_addr;
 
     // Accept returns "fd" which is the socket file descriptor for the accepted connection,
@@ -69,8 +91,7 @@ int main()
         unsigned short int client_port = sin->sin_port;
         if (fd != -1)
         {
-            printf("Accepted new connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
-            syslog(LOG_INFO, "Accepted connection from %d.%d.%d.%d", client_ip[0], client_ip[1], client_ip[2], client_ip[3]);
+            syslog(LOG_INFO, "Accepted connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
         }
 
         // Create a new file to store the received packages
@@ -96,28 +117,24 @@ int main()
             {
                 // Errno 107 means that the socket is NOT connected (any more)
                 syslog(LOG_ERR, "Value of errno attempting to receive data from %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
-                printf("Could not receive data from client, ending receiving, errno is %d\n", errno);
+                //printf("Could not receive data from client, ending receiving, errno is %d\n", errno);
                 break;
             }
             // Store the last received packet in target file
-            printf("Received %d bytes from client\n", bytes_num);
             len += bytes_num;
             fprintf(file, "%s", buffer);
             // Prepare sendBuffer
             strcat(sendBuffer, buffer);
             // Send the full received content as acknowledgement
-            printf("buffer contains: %d bytes:\n%s", len, sendBuffer);
             int bytes_sent = send(fd, sendBuffer, len, 0);
             if (bytes_sent == -1)
             {
                 syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
-                printf("Could not send data to client, ending send, errno is %d\n", errno);
                 break;
             }
         }
         fclose(file);
         syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
-        printf("Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
     }
 
     // Free my_addr once we are finished and close the remaining file descriptors
