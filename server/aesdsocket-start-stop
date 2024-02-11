@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/bin/sh
 # Script to manage aesdsocket daemon
 # start-stop-daemon checks the existing process before launching a new deamon
 # so it is safer than directly starting your executable
 
 NAME=aesdsocket
-DAEMON=/mnt/data/lsm1so/aeld/assignments-3-and-later-sebaleme/server/aesdsocket
-# DAEMON=/usr/bin/aesdsocket (for ARM)
+#DAEMON=/mnt/data/lsm1so/aeld/assignments-3-and-later-sebaleme/server/aesdsocket (x86)
+DAEMON=/usr/bin/aesdsocket
 DAEMON_OPTS="-d"
 PIDFILE=/var/run/$NAME.pid
 
