@@ -16,6 +16,7 @@
 #define PORT "9000"
 #define BACKLOG 10
 #define FILEPATH "/var/tmp/aesdsocketdata"
+#define BUFFER_SIZE 2000
 
 // (IPv4 only--see struct sockaddr_in6 for IPv6)
 // struct sockaddr_in {
@@ -111,10 +112,11 @@ int main(int argc, char** argv)
         }
 
         // Receive data from open port
-        char buffer[20000] = {0};
+        char* buffer = malloc(BUFFER_SIZE);
         while (true)
         {
-            int bytes_num = recv(fd, buffer, 20000, 0);
+            memset(buffer, 0x00, BUFFER_SIZE);
+            int bytes_num = recv(fd, buffer, BUFFER_SIZE-1, 0);
             if (bytes_num == 0)
             {
                 // 0 byte received, the connection was closed by the client
@@ -129,18 +131,24 @@ int main(int argc, char** argv)
             }
             // Store the last received packet in target file
             len += bytes_num;
-            syslog(LOG_INFO, "Received %d bytes, full content is %d bytes\n", bytes_num, len);
-            fprintf(file, "%s", buffer);
+            int written_bytes = fwrite(buffer, sizeof(char), bytes_num, file);
+            syslog(LOG_INFO, "Received %d bytes, full content is %d bytes, wrote %d bytes into target file\n", bytes_num, len, written_bytes);
             // Prepare sendBuffer
             strcat(sendBuffer, buffer);
-            // Send the full received content as acknowledgement
-            int bytes_sent = send(fd, sendBuffer, len, 0);
-            if (bytes_sent == -1)
-            {
-                syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
-                break;
+
+            // If new line character, this is the last package and send the answer
+            if(memchr(buffer, '\n', bytes_num) != NULL) {
+                // Send the full received content as acknowledgement
+                int bytes_sent = send(fd, sendBuffer, len, 0);
+                syslog(LOG_INFO, "Sent %d bytes as acknowledgement, ||%s||\n", bytes_sent, sendBuffer);
+                if (bytes_sent == -1)
+                {
+                    syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
+                    break;
+                }
             }
         }
+
         fclose(file);
         syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
     }
