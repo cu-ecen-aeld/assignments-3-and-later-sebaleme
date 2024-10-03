@@ -4,8 +4,8 @@
 # so it is safer than directly starting your executable
 
 NAME=aesdsocket
-#DAEMON=/mnt/data/lsm1so/aeld/assignments-3-and-later-sebaleme/server/aesdsocket (x86)
-DAEMON=/usr/bin/aesdsocket
+DAEMON=~/workspace/assignments-3-and-later-sebaleme/server/aesdsocket #(x86)
+#DAEMON=/usr/bin/aesdsocket
 DAEMON_OPTS="-d"
 PIDFILE=/var/run/$NAME.pid
 

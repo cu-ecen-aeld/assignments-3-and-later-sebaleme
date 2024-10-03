@@ -129,6 +129,7 @@ int main(int argc, char** argv)
             }
             // Store the last received packet in target file
             len += bytes_num;
+            syslog(LOG_INFO, "Received %d bytes, full content is %d bytes\n", bytes_num, len);
             fprintf(file, "%s", buffer);
             // Prepare sendBuffer
             strcat(sendBuffer, buffer);
