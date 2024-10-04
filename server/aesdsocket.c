@@ -26,45 +26,38 @@
 //     unsigned char      sin_zero[8]; // Same size as struct sockaddr
 // };
 
-int main(int argc, char** argv)
+
+/// Function which transfer process to a deamon
+/// A deamon is running outside any console, in the system background
+void create_deamon()
+{        
+    // creating child process which is not attached to a TTY
+    int pid = fork();
+    // An error occurred
+    if (pid < 0)
+        exit(EXIT_FAILURE);
+    // Success: Let the parent terminate so grand parent can proceed
+    if (pid > 0)
+        exit(EXIT_SUCCESS);
+
+    // Create a new session so daemon is not linked to any tty
+    if (setsid() < 0)
+        exit(EXIT_FAILURE);
+
+    // Change the working directory to the root directory so no possible error if unmount
+    chdir("/");
+
+    // Redirect stdin, stdout and stderr to /dev/null, so our daemon won t communicate through a console
+    close(0); close(1); close(2);
+    open("/dev/null",O_RDWR); dup(0); dup(0);
+}
+
+///
+///
+int createSocketConnection(struct addrinfo* my_addr)
 {
-    // Use the syslog for non interactive application
-    openlog("aesdsocket",0,LOG_USER);
-    syslog(LOG_INFO, "Entering server socket program\n");
-
-    // Run process as daemon if called with option -d
-    if((argc == 2)&&(argv[1][0] == '-')&&(argv[1][1] == 'd'))
-    {
-        // creating child process which is not attached to a TTY
-        int pid = fork();
-        // An error occurred
-        if (pid < 0)
-            exit(EXIT_FAILURE);
-        // Success: Let the parent terminate so grand parent can proceed
-        if (pid > 0)
-            exit(EXIT_SUCCESS);
-
-        // Create a new session so daemon is not linked to any tty
-        if (setsid() < 0)
-            exit(EXIT_FAILURE);
-
-        // Change the working directory to the root directory so no possible error if unmount
-        chdir("/");
-
-        // Redirect stdin, stdout and stderr to /dev/null, so our daemon won t communicate through a console
-        close(0); close(1); close(2);
-        open("/dev/null",O_RDWR); dup(0); dup(0);
-    }
-
-
-    // Delete output file if already exists
-    remove(FILEPATH);
-    // Total number of bytes and char array to be sent back to client
-    int32_t len = 0;
-    char sendBuffer[60000] = {0};
     // Create socket and bind it to given port
     int socket_fd = socket(PF_INET, SOCK_STREAM, 0);
-    struct addrinfo *my_addr;
     // first, load up address structs with getaddrinfo():
     struct addrinfo hints;
     memset(&hints, 0, sizeof hints);
@@ -80,9 +73,31 @@ int main(int argc, char** argv)
     // Assign an address to the socket
     bind(socket_fd, my_addr->ai_addr, sizeof(struct sockaddr));
     syslog(LOG_INFO, "Socket created and binded, with file descriptor %d\n", socket_fd);
+    return socket_fd;
+}
+
+int main(int argc, char** argv)
+{
+    // Use the syslog for non interactive application
+    openlog("aesdsocket",0,LOG_USER);
+    syslog(LOG_INFO, "Entering server socket program\n");
+
+    // Run process as daemon if called with option -d
+    if((argc == 2)&&(argv[1][0] == '-')&&(argv[1][1] == 'd'))
+    {
+        create_deamon();
+    }
+
+    // Delete output file if already exists
+    remove(FILEPATH);
+    // Total number of bytes and char array to be sent back to client
+    int32_t len = 0;
+    char sendBuffer[60000] = {0};
 
     // Listen and accept connections
     struct sockaddr_storage client_addr;
+    struct addrinfo *my_addr = NULL;
+    int socket_fd = createSocketConnection(my_addr);
     listen(socket_fd, BACKLOG);
     syslog(LOG_INFO, "Listening to connections on %d\n", socket_fd);
     socklen_t addr_size = sizeof client_addr;
@@ -116,7 +131,7 @@ int main(int argc, char** argv)
         while (true)
         {
             memset(buffer, 0x00, BUFFER_SIZE);
-            int bytes_num = recv(fd, buffer, BUFFER_SIZE-1, 0);
+            int bytes_num = recv(fd, buffer, BUFFER_SIZE, 0);
             if (bytes_num == 0)
             {
                 // 0 byte received, the connection was closed by the client
