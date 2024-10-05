@@ -26,6 +26,14 @@
 //     unsigned char      sin_zero[8]; // Same size as struct sockaddr
 // };
 
+/// Create struct for thread information
+struct CThreadInstance
+{
+    int fd ; // accepted socket connection identifyer, unique for each thread
+    struct sockaddr_storage client_addr; // Describes the socket address.
+    socklen_t addr_size; // Address size, depends of address type (IPv4 or IPv6)
+};
+
 
 /// Function which transfer process to a deamon
 /// A deamon is running outside any console, in the system background
@@ -52,8 +60,7 @@ void create_deamon()
     open("/dev/null",O_RDWR); dup(0); dup(0);
 }
 
-///
-///
+/// Function initializing the socket, prepares the future connections
 int createSocketConnection(struct addrinfo* my_addr)
 {
     // Create socket and bind it to given port
@@ -95,24 +102,23 @@ int main(int argc, char** argv)
     char sendBuffer[60000] = {0};
 
     // Listen and accept connections
-    struct sockaddr_storage client_addr;
     struct addrinfo *my_addr = NULL;
     int socket_fd = createSocketConnection(my_addr);
     listen(socket_fd, BACKLOG);
     syslog(LOG_INFO, "Listening to connections on %d\n", socket_fd);
-    socklen_t addr_size = sizeof client_addr;
+    struct CThreadInstance thread;
+    thread.addr_size = sizeof thread.client_addr;
 
     // Accept returns "fd" which is the socket file descriptor for the accepted connection,
     // and socket_fd remains the socket file descriptor, still listening for other connections
     // fd is the accepted socket, and will be used for sending/receiving data
-    int fd;
-    while((fd = accept(socket_fd, (struct sockaddr *)&client_addr, &addr_size)))
+    while((thread.fd = accept(socket_fd, (struct sockaddr *)&(thread.client_addr), &(thread.addr_size))))
     {
         // Extracting client IP address from the socket address storage
-        struct sockaddr_in *sin = (struct sockaddr_in *)&client_addr;
+        struct sockaddr_in *sin = (struct sockaddr_in *)&(thread.client_addr);
         unsigned char *client_ip = (unsigned char *)&sin->sin_addr.s_addr;
         unsigned short int client_port = sin->sin_port;
-        if (fd != -1)
+        if (thread.fd != -1)
         {
             syslog(LOG_INFO, "Accepted connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
         }
@@ -131,7 +137,7 @@ int main(int argc, char** argv)
         while (true)
         {
             memset(buffer, 0x00, BUFFER_SIZE);
-            int bytes_num = recv(fd, buffer, BUFFER_SIZE, 0);
+            int bytes_num = recv(thread.fd, buffer, BUFFER_SIZE, 0);
             if (bytes_num == 0)
             {
                 // 0 byte received, the connection was closed by the client
@@ -154,7 +160,7 @@ int main(int argc, char** argv)
             // If new line character, this is the last package and send the answer
             if(memchr(buffer, '\n', bytes_num) != NULL) {
                 // Send the full received content as acknowledgement
-                int bytes_sent = send(fd, sendBuffer, len, 0);
+                int bytes_sent = send(thread.fd, sendBuffer, len, 0);
                 syslog(LOG_INFO, "Sent %d bytes as acknowledgement, ||%s||\n", bytes_sent, sendBuffer);
                 if (bytes_sent == -1)
                 {
@@ -170,7 +176,7 @@ int main(int argc, char** argv)
 
     // Free my_addr once we are finished and close the remaining file descriptors
     free(my_addr);
-    close(fd);
+    close(thread.fd);
     close(socket_fd);
     closelog();
 
