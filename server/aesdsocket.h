@@ -23,6 +23,7 @@ struct CThreadInstance
     int fd ; // accepted socket connection identifyer, unique for each thread
     struct sockaddr_storage client_addr; // Describes the socket address.
     socklen_t addr_size; // Address size, depends of address type (IPv4 or IPv6)
+    bool done; // True if the thread can be terminated
 };
 
 

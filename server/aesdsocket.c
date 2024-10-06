@@ -9,7 +9,8 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <syslog.h>
-
+#include <sys/queue.h>
+#include <time.h>
 
 #include "aesdsocket.h"
 
@@ -49,6 +50,7 @@ int main(int argc, char** argv)
     // fd is the accepted socket, and will be used for sending/receiving data
     while((thread.fd = accept(socket_fd, (struct sockaddr *)&(thread.client_addr), &(thread.addr_size))))
     {
+        clock_t start = clock();
         // Extracting client IP address from the socket address storage
         struct sockaddr_in *sin = (struct sockaddr_in *)&(thread.client_addr);
         unsigned char *client_ip = (unsigned char *)&sin->sin_addr.s_addr;
@@ -106,7 +108,9 @@ int main(int argc, char** argv)
         }
 
         fclose(file);
-        syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
+        clock_t end = clock();
+        float seconds = (float)(end - start) / CLOCKS_PER_SEC;
+        syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d:%d after %f seconds\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port, seconds);
     }
 
     // Free my_addr once we are finished and close the remaining file descriptors
