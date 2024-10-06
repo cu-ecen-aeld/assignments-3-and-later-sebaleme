@@ -74,11 +74,12 @@ int main(int argc, char** argv)
             SLIST_INSERT_AFTER(head.slh_first,newElement,pointers);
         }
 
-        // Remove finished thread if any. Get current queue size
+        // Remove finished thread if any and release related allocated memory
         struct slist_data_s *elementP, *elementPTemp;
         SLIST_FOREACH_SAFE(elementP, &head, pointers, elementPTemp)
             if(elementP->instance.done)
                 SLIST_REMOVE(&head, elementP, slist_data_s, pointers);
+                free(elementP);
                 sizeQ--;
 
         // Extracting client IP address from the socket address storage
@@ -137,6 +138,7 @@ int main(int argc, char** argv)
             }
         }
         
+        free(buffer);
         fclose(file);
         if(newElement) // New element should always be defined in this context
         {
