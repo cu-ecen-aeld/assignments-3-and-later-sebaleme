@@ -26,6 +26,13 @@ struct CThreadInstance
     bool done; // True if the thread can be terminated
 };
 
+struct slist_data_s
+{
+    SLIST_ENTRY(slist_data_s) pointers;
+    struct CThreadInstance instance;
+};
+
+
 
 /// Function which transfer process to a deamon
 /// A deamon is running outside any console, in the system background

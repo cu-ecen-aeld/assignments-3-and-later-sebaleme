@@ -9,7 +9,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <syslog.h>
-#include <sys/queue.h>
+#include "queue_bsd.h"
 #include <time.h>
 
 #include "aesdsocket.h"
@@ -42,20 +42,50 @@ int main(int argc, char** argv)
     int socket_fd = createSocketConnection(my_addr);
     listen(socket_fd, BACKLOG);
     syslog(LOG_INFO, "Listening to connections on %d\n", socket_fd);
-    struct CThreadInstance thread;
-    thread.addr_size = sizeof thread.client_addr;
+    struct sockaddr_storage client_addr;
+    socklen_t addr_size = sizeof(struct sockaddr_storage);
+
+    // Create thread queue, using singly Linked List
+    SLIST_HEAD(slisthead, slist_data_s) head;
+    SLIST_INIT(&head);
+    int sizeQ = 0;
 
     // Accept returns "fd" which is the socket file descriptor for the accepted connection,
     // and socket_fd remains the socket file descriptor, still listening for other connections
     // fd is the accepted socket, and will be used for sending/receiving data
-    while((thread.fd = accept(socket_fd, (struct sockaddr *)&(thread.client_addr), &(thread.addr_size))))
+    int fd;
+    while((fd = accept(socket_fd, (struct sockaddr *)&(client_addr), &(addr_size))))
     {
         clock_t start = clock();
+        // Create new thread
+        struct slist_data_s *newElement = malloc(sizeof(struct slist_data_s));
+        syslog(LOG_INFO, "New thread started, now %d ongoing\n", ++sizeQ);
+        newElement->instance.fd = fd;
+        newElement->instance.client_addr = client_addr;
+        newElement->instance.addr_size = addr_size;
+
+        if(head.slh_first == NULL)
+        {
+            SLIST_INSERT_HEAD(&head,newElement,pointers);
+        }
+        else
+        {
+            // Insert newElement after the head. No need to have any specific order
+            SLIST_INSERT_AFTER(head.slh_first,newElement,pointers);
+        }
+
+        // Remove finished thread if any. Get current queue size
+        struct slist_data_s *elementP, *elementPTemp;
+        SLIST_FOREACH_SAFE(elementP, &head, pointers, elementPTemp)
+            if(elementP->instance.done)
+                SLIST_REMOVE(&head, elementP, slist_data_s, pointers);
+                sizeQ--;
+
         // Extracting client IP address from the socket address storage
-        struct sockaddr_in *sin = (struct sockaddr_in *)&(thread.client_addr);
+        struct sockaddr_in *sin = (struct sockaddr_in *)&(newElement->instance.client_addr);
         unsigned char *client_ip = (unsigned char *)&sin->sin_addr.s_addr;
         unsigned short int client_port = sin->sin_port;
-        if (thread.fd != -1)
+        if (fd != -1)
         {
             syslog(LOG_INFO, "Accepted connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
         }
@@ -74,7 +104,7 @@ int main(int argc, char** argv)
         while (true)
         {
             memset(buffer, 0x00, BUFFER_SIZE);
-            int bytes_num = recv(thread.fd, buffer, BUFFER_SIZE, 0);
+            int bytes_num = recv(fd, buffer, BUFFER_SIZE, 0);
             if (bytes_num == 0)
             {
                 // 0 byte received, the connection was closed by the client
@@ -97,7 +127,7 @@ int main(int argc, char** argv)
             // If new line character, this is the last package and send the answer
             if(memchr(buffer, '\n', bytes_num) != NULL) {
                 // Send the full received content as acknowledgement
-                int bytes_sent = send(thread.fd, sendBuffer, len, 0);
+                int bytes_sent = send(fd, sendBuffer, len, 0);
                 syslog(LOG_INFO, "Sent %d bytes as acknowledgement, ||%s||\n", bytes_sent, sendBuffer);
                 if (bytes_sent == -1)
                 {
@@ -106,16 +136,23 @@ int main(int argc, char** argv)
                 }
             }
         }
-
+        
         fclose(file);
+        if(newElement) // New element should always be defined in this context
+        {
+            newElement->instance.done = true;
+        }
         clock_t end = clock();
         float seconds = (float)(end - start) / CLOCKS_PER_SEC;
         syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d:%d after %f seconds\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port, seconds);
     }
 
+    // TODO: Somehow, this log is not printed??
+    syslog(LOG_INFO, "There are still %d threads running\n", sizeQ);
+
     // Free my_addr once we are finished and close the remaining file descriptors
     free(my_addr);
-    close(thread.fd);
+    close(fd);
     close(socket_fd);
     closelog();
 
