@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "queue_bsd.h"
+
 #define PORT "9000"
 
 // (IPv4 only--see struct sockaddr_in6 for IPv6)
@@ -22,14 +24,19 @@ struct CThreadInstance
 {
     int fd ; // accepted socket connection identifyer, unique for each thread
     struct sockaddr_storage client_addr; // Describes the socket address.
-    socklen_t addr_size; // Address size, depends of address type (IPv4 or IPv6)
+    pthread_t* thread;
+    /********************************************/
     bool done; // True if the thread can be terminated
+    pthread_mutex_t bool_mutex; // Shared resource synchronization
+    /********************************************/
+    FILE *file;
+    pthread_mutex_t file_mutex; // Shared resource synchronization
 };
 
 struct slist_data_s
 {
+    struct CThreadInstance thread_data;
     SLIST_ENTRY(slist_data_s) pointers;
-    struct CThreadInstance instance;
 };
 
 
