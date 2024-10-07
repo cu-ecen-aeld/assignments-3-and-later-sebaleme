@@ -25,7 +25,7 @@ void* threadfunc(void* thread_param)
     clock_t start = clock();
 
     // Cast input param back to a useful type
-    struct thread_data* data = (struct thread_data *) thread_param;
+    struct CThreadInstance* data = (struct CThreadInstance *) thread_param;
 
     // Receive data from open port
     char* buffer = malloc(BUFFER_SIZE);
@@ -155,8 +155,9 @@ int main(int argc, char** argv)
             SLIST_INSERT_AFTER(head.slh_first,slist_data_ptr, pointers);
         }
 
-        // Start thread
-        int rc = pthread_create(&thread, NULL, threadfunc, slist_data_ptr);
+        // Start thread with its internal data
+        struct CThreadInstance* data =  &(slist_data_ptr->thread_data);
+        int rc = pthread_create(&thread, NULL, threadfunc, data);
         // Need to free the dynamic allocated struct if pthread creation fails
         if(rc != 0)
         {
@@ -169,10 +170,13 @@ int main(int argc, char** argv)
         struct slist_data_s *elementP, *elementPTemp;
         SLIST_FOREACH_SAFE(elementP, &head, pointers, elementPTemp)
             if(elementP->thread_data.done)
-                pthread_join(*(elementP->thread_data.thread),&(elementP->thread_data));
+            {
+                // Close thread, no return value 
+                pthread_join(*(elementP->thread_data.thread),NULL);
                 SLIST_REMOVE(&head, elementP, slist_data_s, pointers);
                 free(elementP);
                 sizeQ--;
+            }
     }
 
     // TODO: Somehow, this log is not printed??
