@@ -191,7 +191,7 @@ int main(int argc, char** argv)
     // Need to free the dynamic allocated struct if pthread creation fails
     if(rc != 0)
     {
-        free(ts_thread_data);
+        syslog(LOG_INFO, "timestamp thread could not be started: %d\n", errno);
     }
     else
     {
@@ -210,6 +210,7 @@ int main(int argc, char** argv)
         // Prepare thread context
         struct slist_data_s *slist_data_ptr = malloc(sizeof(struct slist_data_s));
         slist_data_ptr->thread_data.fd = fd;
+        slist_data_ptr->thread_data.done = false;
         slist_data_ptr->thread_data.client_addr = client_addr;
         slist_data_ptr->thread_data.thread = &thread;
         slist_data_ptr->thread_data.file_mutex = &file_mutex;
@@ -253,6 +254,7 @@ int main(int argc, char** argv)
     syslog(LOG_INFO, "There are still %d threads running\n", sizeQ);
 
     // Free my_addr once we are finished and close the remaining file descriptors
+    free(ts_thread_data);
     free(my_addr);
     close(fd);
     close(socket_fd);
