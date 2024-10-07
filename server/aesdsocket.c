@@ -19,6 +19,49 @@
 #define FILEPATH "/var/tmp/aesdsocketdata"
 #define BUFFER_SIZE 2000
 #define MAX_BUFFER_SIZE 50000
+#define TIMEGAP_USECOND 10000000 //10s
+
+
+/// Thread function writing regular timestamps
+void* timestamp_func(void* thread_ts_param)
+{
+    time_t t;
+    struct tm *tmp;
+
+    // Cast input param back to a useful type
+    struct CThreadInstance* ts_data = (struct CThreadInstance *) thread_ts_param;
+
+    while(true)
+    {
+        usleep(TIMEGAP_USECOND);
+
+        // Create required locals for formatted timestamp. Need to be initialized at each iteration
+        char tsstr[200] = "timestamp:";
+        char outstr[200];
+
+        //Format timestamp
+        t = time(NULL);
+        tmp = localtime(&t);
+        int bytes_num = strftime(outstr, sizeof(outstr), "%Y%m%d %H:%M:%S", tmp);
+        strcat(tsstr, outstr);
+        strcat(tsstr, "\n");
+
+        // Write data to file
+        get_mutex(ts_data->file_mutex);
+        ts_data->file = fopen(FILEPATH, "a");
+        if (ts_data->file == NULL)
+        {
+            syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
+            break;
+        }
+        // +11 because tsstr was appended with the new line character and outstr
+        int written_bytes = fwrite(tsstr, sizeof(char), bytes_num+11, ts_data->file);
+        fclose(ts_data->file);
+        release_mutex(ts_data->file_mutex);
+        syslog(LOG_INFO, "Timestamp thread: wrote %d bytes into target file\n", written_bytes);
+    }
+    return thread_ts_param;
+}
 
 /// Thread processes new transmission
 void* threadfunc(void* thread_param)
@@ -65,6 +108,7 @@ void* threadfunc(void* thread_param)
         }
         // Store the last received packet in target file
         len += bytes_num;
+        get_mutex(data->file_mutex);
         data->file = fopen(FILEPATH, "a");
         if (data->file == NULL)
         {
@@ -73,15 +117,18 @@ void* threadfunc(void* thread_param)
         }
         int written_bytes = fwrite(buffer, sizeof(char), bytes_num, data->file);
         fclose(data->file);
+        release_mutex(data->file_mutex);
         syslog(LOG_INFO, "Received %d bytes, wrote %d bytes into target file\n", bytes_num, written_bytes);
 
         // If new line character, this is the last package and send the answer
         if(memchr(buffer, '\n', bytes_num) != NULL) {
             // Prepare sendBuffer, containing the answer to the client
             char sendBuffer[MAX_BUFFER_SIZE] = {0};
+            get_mutex(data->file_mutex);
             data->file = fopen(FILEPATH, "r");
             int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, data->file);
             fclose(data->file);
+            release_mutex(data->file_mutex);
             // Send the full received content as acknowledgement
             int bytes_sent = send(data->fd, sendBuffer, read_bytes, 0);
             syslog(LOG_INFO, "Read %d bytes in local file, sent %d bytes as acknowledgement, ||%s||\n", read_bytes, bytes_sent, sendBuffer);
@@ -126,10 +173,25 @@ int main(int argc, char** argv)
     SLIST_INIT(&head);
     int sizeQ = 0;
 
-    // Create a new file to store the received packages and its related mutex
-    //FILE *file = NULL;
+    // Create mutex for file synchronisation between all the threads (they will all access the same resource)
     pthread_mutex_t file_mutex;
     pthread_mutex_init(&file_mutex, NULL);
+
+    // Create new thread for writing timestamps
+    pthread_t ts_thread;
+    struct CThreadInstance* ts_thread_data =  malloc(sizeof(struct CThreadInstance));
+    ts_thread_data->thread = &ts_thread;
+    ts_thread_data->file_mutex = &file_mutex;
+    int rc = pthread_create(&ts_thread, NULL, timestamp_func, ts_thread_data);
+    // Need to free the dynamic allocated struct if pthread creation fails
+    if(rc != 0)
+    {
+        free(ts_thread_data);
+    }
+    else
+    {
+        syslog(LOG_INFO, "timestamp thread started, now %d ongoing\n", ++sizeQ);
+    }
 
     // Accept returns "fd" which is the socket file descriptor for the accepted connection,
     // and socket_fd remains the socket file descriptor, still listening for other connections
@@ -142,11 +204,10 @@ int main(int argc, char** argv)
 
         // Prepare thread context
         struct slist_data_s *slist_data_ptr = malloc(sizeof(struct slist_data_s));
-        syslog(LOG_INFO, "New thread started, now %d ongoing\n", ++sizeQ);
         slist_data_ptr->thread_data.fd = fd;
         slist_data_ptr->thread_data.client_addr = client_addr;
         slist_data_ptr->thread_data.thread = &thread;
-        slist_data_ptr->thread_data.file_mutex = file_mutex;
+        slist_data_ptr->thread_data.file_mutex = &file_mutex;
 
         if(head.slh_first == NULL)
         {
@@ -161,6 +222,7 @@ int main(int argc, char** argv)
         // Start thread with its internal data
         struct CThreadInstance* data =  &(slist_data_ptr->thread_data);
         int rc = pthread_create(&thread, NULL, threadfunc, data);
+        syslog(LOG_INFO, "New thread started, now %d ongoing\n", ++sizeQ);
         // Need to free the dynamic allocated struct if pthread creation fails
         if(rc != 0)
         {

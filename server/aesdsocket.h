@@ -30,7 +30,7 @@ struct CThreadInstance
     pthread_mutex_t bool_mutex; // Shared resource synchronization
     /********************************************/
     FILE *file;
-    pthread_mutex_t file_mutex; // Shared resource synchronization
+    pthread_mutex_t *file_mutex; // Shared resource synchronization
 };
 
 struct slist_data_s
@@ -40,6 +40,25 @@ struct slist_data_s
 };
 
 
+/// Helper function get mutex
+void get_mutex(pthread_mutex_t* mutex)
+{
+    int rc = pthread_mutex_lock(mutex);
+    if(rc != 0)
+    {
+        syslog(LOG_INFO, "[CHILD TREAD] could not get mutex");
+    }
+}
+
+/// Helper function release mutex
+void release_mutex(pthread_mutex_t* mutex)
+{
+    int rc = pthread_mutex_unlock(mutex);
+    if(rc != 0)
+    {
+        syslog(LOG_INFO, "[CHILD TREAD] could not get mutex");
+    }
+}
 
 /// Function which transfer process to a deamon
 /// A deamon is running outside any console, in the system background
