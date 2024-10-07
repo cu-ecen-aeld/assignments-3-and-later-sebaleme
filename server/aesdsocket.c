@@ -48,15 +48,15 @@ void* timestamp_func(void* thread_ts_param)
 
         // Write data to file
         get_mutex(ts_data->file_mutex);
-        ts_data->file = fopen(FILEPATH, "a");
-        if (ts_data->file == NULL)
+        FILE *file = fopen(FILEPATH, "a");
+        if (file == NULL)
         {
             syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
             break;
         }
         // +11 because tsstr was appended with the new line character and outstr
-        int written_bytes = fwrite(tsstr, sizeof(char), bytes_num+11, ts_data->file);
-        fclose(ts_data->file);
+        int written_bytes = fwrite(tsstr, sizeof(char), bytes_num+11, file);
+        fclose(file);
         release_mutex(ts_data->file_mutex);
         syslog(LOG_INFO, "Timestamp thread: wrote %d bytes into target file\n", written_bytes);
     }
@@ -109,14 +109,14 @@ void* threadfunc(void* thread_param)
         // Store the last received packet in target file
         len += bytes_num;
         get_mutex(data->file_mutex);
-        data->file = fopen(FILEPATH, "a");
-        if (data->file == NULL)
+        FILE *file = fopen(FILEPATH, "a");
+        if (file == NULL)
         {
             syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
             break;
         }
-        int written_bytes = fwrite(buffer, sizeof(char), bytes_num, data->file);
-        fclose(data->file);
+        int written_bytes = fwrite(buffer, sizeof(char), bytes_num, file);
+        fclose(file);
         release_mutex(data->file_mutex);
         syslog(LOG_INFO, "Received %d bytes, wrote %d bytes into target file\n", bytes_num, written_bytes);
 
@@ -125,9 +125,9 @@ void* threadfunc(void* thread_param)
             // Prepare sendBuffer, containing the answer to the client
             char sendBuffer[MAX_BUFFER_SIZE] = {0};
             get_mutex(data->file_mutex);
-            data->file = fopen(FILEPATH, "r");
-            int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, data->file);
-            fclose(data->file);
+            FILE *fileRead = fopen(FILEPATH, "r");
+            int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, fileRead);
+            fclose(fileRead);
             release_mutex(data->file_mutex);
             // Send the full received content as acknowledgement
             int bytes_sent = send(data->fd, sendBuffer, read_bytes, 0);
@@ -142,6 +142,7 @@ void* threadfunc(void* thread_param)
     
     syslog(LOG_INFO, "Thread finished, received a total of %d data from the client", len);
     free(buffer);
+    // No need of mutex since operation is atomic.
     data->done = true;
     return thread_param;
 }

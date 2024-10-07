@@ -24,12 +24,8 @@ struct CThreadInstance
 {
     int fd ; // accepted socket connection identifyer, unique for each thread
     struct sockaddr_storage client_addr; // Describes the socket address.
-    pthread_t* thread;
-    /********************************************/
     bool done; // True if the thread can be terminated
-    pthread_mutex_t bool_mutex; // Shared resource synchronization
-    /********************************************/
-    FILE *file;
+    pthread_t* thread;
     pthread_mutex_t *file_mutex; // Shared resource synchronization
 };
 
