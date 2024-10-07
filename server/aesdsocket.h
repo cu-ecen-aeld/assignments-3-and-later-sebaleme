@@ -35,6 +35,11 @@ struct slist_data_s
     SLIST_ENTRY(slist_data_s) pointers;
 };
 
+/// In case of abort request, terminate threads
+static volatile int keepRunning = 1;
+void intHandler(int dummy) {
+    keepRunning = 0;
+}
 
 /// Helper function get mutex
 void get_mutex(pthread_mutex_t* mutex)

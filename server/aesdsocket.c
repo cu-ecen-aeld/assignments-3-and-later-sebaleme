@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -31,7 +32,7 @@ void* timestamp_func(void* thread_ts_param)
     // Cast input param back to a useful type
     struct CThreadInstance* ts_data = (struct CThreadInstance *) thread_ts_param;
 
-    while(true)
+    while(keepRunning)
     {
         usleep(TIMEGAP_USECOND);
 
@@ -90,7 +91,7 @@ void* threadfunc(void* thread_param)
     float seconds = (float)(end - start) / CLOCKS_PER_SEC;
     syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d:%d after %f seconds\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port, seconds);
 
-    while (true)
+    while (keepRunning)
     {
         memset(buffer, 0x00, BUFFER_SIZE);
         int bytes_num = recv(data->fd, buffer, BUFFER_SIZE, 0);
@@ -152,6 +153,9 @@ int main(int argc, char** argv)
     // Use the syslog for non interactive application
     openlog("aesdsocket",0,LOG_USER);
     syslog(LOG_INFO, "Entering server socket program\n");
+
+    // Capture abort signal
+    signal(SIGINT, intHandler);
 
     // Run process as daemon if called with option -d
     if((argc == 2)&&(argv[1][0] == '-')&&(argv[1][1] == 'd'))
