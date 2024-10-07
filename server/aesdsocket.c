@@ -18,6 +18,7 @@
 #define BACKLOG 10
 #define FILEPATH "/var/tmp/aesdsocketdata"
 #define BUFFER_SIZE 2000
+#define MAX_BUFFER_SIZE 50000
 
 /// Thread processes new transmission
 void* threadfunc(void* thread_param)
@@ -30,11 +31,10 @@ void* threadfunc(void* thread_param)
     // Receive data from open port
     char* buffer = malloc(BUFFER_SIZE);
 
-    // Total number of bytes and char array to be sent back to client
+    // Total number of bytes received by this thread
     int32_t len = 0;
-    char sendBuffer[60000] = {0};
 
-        // Extracting client IP address from the socket address storage
+    // Extracting client IP address from the socket address storage
     struct sockaddr_in *sin = (struct sockaddr_in *)&(data->client_addr);
     unsigned char *client_ip = (unsigned char *)&sin->sin_addr.s_addr;
     unsigned short int client_port = sin->sin_port;
@@ -66,17 +66,25 @@ void* threadfunc(void* thread_param)
         // Store the last received packet in target file
         len += bytes_num;
         data->file = fopen(FILEPATH, "a");
+        if (data->file == NULL)
+        {
+            syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
+            break;
+        }
         int written_bytes = fwrite(buffer, sizeof(char), bytes_num, data->file);
         fclose(data->file);
-        syslog(LOG_INFO, "Received %d bytes, full content is %d bytes, wrote %d bytes into target file\n", bytes_num, len, written_bytes);
-        // Prepare sendBuffer
-        strcat(sendBuffer, buffer);
+        syslog(LOG_INFO, "Received %d bytes, wrote %d bytes into target file\n", bytes_num, written_bytes);
 
         // If new line character, this is the last package and send the answer
         if(memchr(buffer, '\n', bytes_num) != NULL) {
+            // Prepare sendBuffer, containing the answer to the client
+            char sendBuffer[MAX_BUFFER_SIZE] = {0};
+            data->file = fopen(FILEPATH, "r");
+            int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, data->file);
+            fclose(data->file);
             // Send the full received content as acknowledgement
-            int bytes_sent = send(data->fd, sendBuffer, len, 0);
-            syslog(LOG_INFO, "Sent %d bytes as acknowledgement, ||%s||\n", bytes_sent, sendBuffer);
+            int bytes_sent = send(data->fd, sendBuffer, read_bytes, 0);
+            syslog(LOG_INFO, "Read %d bytes in local file, sent %d bytes as acknowledgement, ||%s||\n", read_bytes, bytes_sent, sendBuffer);
             if (bytes_sent == -1)
             {
                 syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
@@ -84,7 +92,8 @@ void* threadfunc(void* thread_param)
             }
         }
     }
-
+    
+    syslog(LOG_INFO, "Thread finished, received a total of %d data from the client", len);
     free(buffer);
     data->done = true;
     return thread_param;
@@ -118,15 +127,9 @@ int main(int argc, char** argv)
     int sizeQ = 0;
 
     // Create a new file to store the received packages and its related mutex
-    FILE *file = NULL;
-    //file = fopen(FILEPATH, "a");
+    //FILE *file = NULL;
     pthread_mutex_t file_mutex;
     pthread_mutex_init(&file_mutex, NULL);
-    if (file == NULL)
-    {
-        syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
-        return 1;
-    }
 
     // Accept returns "fd" which is the socket file descriptor for the accepted connection,
     // and socket_fd remains the socket file descriptor, still listening for other connections
