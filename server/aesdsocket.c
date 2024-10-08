@@ -21,7 +21,7 @@
 #define BUFFER_SIZE 2000
 #define MAX_BUFFER_SIZE 50000
 #define TIMEGAP_USECOND 10000000 //10s
-
+#define WAIT_DELAY 10000 //10ms
 
 /// Thread function writing regular timestamps
 void* timestamp_func(void* thread_ts_param)
@@ -87,10 +87,6 @@ void* threadfunc(void* thread_param)
         syslog(LOG_INFO, "Accepted connection from %d.%d.%d.%d:%d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port);
     }
 
-    clock_t end = clock();
-    float seconds = (float)(end - start) / CLOCKS_PER_SEC;
-    syslog(LOG_INFO, "Closed connection from %d.%d.%d.%d:%d after %f seconds\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], client_port, seconds);
-
     while (keepRunning)
     {
         memset(buffer, 0x00, BUFFER_SIZE);
@@ -141,7 +137,9 @@ void* threadfunc(void* thread_param)
         }
     }
     
-    syslog(LOG_INFO, "Thread finished, received a total of %d data from the client", len);
+    clock_t end = clock();
+    float seconds = (float)(end - start) / CLOCKS_PER_SEC;
+    syslog(LOG_INFO, "Thread %d finished, received a total of %d data from the client after %f seconds\n", data->fd, len, seconds);
     free(buffer);
     // No need of mutex since operation is atomic.
     data->done = true;
@@ -156,6 +154,7 @@ int main(int argc, char** argv)
 
     // Capture abort signal
     signal(SIGINT, intHandler);
+    //signal(SIGTERM, intHandler);
 
     // Run process as daemon if called with option -d
     if((argc == 2)&&(argv[1][0] == '-')&&(argv[1][1] == 'd'))
@@ -168,7 +167,7 @@ int main(int argc, char** argv)
 
     // Listen and accept connections
     struct addrinfo *my_addr = NULL;
-    int socket_fd = createSocketConnection(my_addr);
+    socket_fd = createSocketConnection(my_addr);
     listen(socket_fd, BACKLOG);
     syslog(LOG_INFO, "Listening to connections on %d\n", socket_fd);
     struct sockaddr_storage client_addr;
@@ -198,12 +197,14 @@ int main(int argc, char** argv)
         syslog(LOG_INFO, "timestamp thread started, now %d ongoing\n", ++sizeQ);
     }
 
-    // Accept returns "fd" which is the socket file descriptor for the accepted connection,
-    // and socket_fd remains the socket file descriptor, still listening for other connections
-    // fd is the accepted socket, and will be used for sending/receiving data
-    int fd;
-    while((fd = accept(socket_fd, (struct sockaddr *)&(client_addr), &(addr_size))))
+    while(keepRunning)
     {
+        // Accept returns "fd" which is the socket file descriptor for the accepted connection,
+        // and socket_fd remains the socket file descriptor, still listening for other connections
+        // fd is the accepted socket, and will be used for sending/receiving data
+        // Accept is a blocking function, but closing the socket exits the function
+        int fd = accept(socket_fd, (struct sockaddr *)&(client_addr), &(addr_size));
+
         // Create new thread
         pthread_t thread;
 
@@ -238,26 +239,30 @@ int main(int argc, char** argv)
         }
 
         // Remove finished thread if any and release related allocated memory
+        // Give time to the thread to finish first
+        usleep(WAIT_DELAY);
         struct slist_data_s *elementP, *elementPTemp;
         SLIST_FOREACH_SAFE(elementP, &head, pointers, elementPTemp)
             if(elementP->thread_data.done)
             {
-                // Close thread, no return value 
+                // Close thread, no return value
+                syslog(LOG_INFO, "Thread %d closed\n", elementP->thread_data.fd);
                 pthread_join(*(elementP->thread_data.thread),NULL);
+                close(fd);
                 SLIST_REMOVE(&head, elementP, slist_data_s, pointers);
                 free(elementP);
                 sizeQ--;
             }
     }
 
-    // TODO: Somehow, this log is not printed??
-    syslog(LOG_INFO, "There are still %d threads running\n", sizeQ);
-
-    // Free my_addr once we are finished and close the remaining file descriptors
+    // Terminate the timestamp thread
+    pthread_join(ts_thread,NULL);
     free(ts_thread_data);
-    free(my_addr);
-    close(fd);
-    close(socket_fd);
+    sizeQ--;
+    syslog(LOG_INFO, "Exiting the socket server program, %d thread still active\n", sizeQ);
+    usleep(WAIT_DELAY);
+    // Free my_addr once we are finished
+    freeaddrinfo(my_addr);
     closelog();
 
     return 0;

@@ -19,6 +19,9 @@
 //     unsigned char      sin_zero[8]; // Same size as struct sockaddr
 // };
 
+// Socket file descriptor for listening connection, has to be closed upon interrupt signal
+static volatile int socket_fd = -1;
+
 /// Create struct for thread information
 struct CThreadInstance
 {
@@ -38,7 +41,9 @@ struct slist_data_s
 /// In case of abort request, terminate threads
 static volatile int keepRunning = 1;
 void intHandler(int dummy) {
+    syslog(LOG_INFO, "Received interrupt signal, ending connection");
     keepRunning = 0;
+    close(socket_fd);
 }
 
 /// Helper function get mutex
