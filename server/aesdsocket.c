@@ -154,7 +154,7 @@ int main(int argc, char** argv)
 
     // Capture abort signal
     signal(SIGINT, intHandler);
-    //signal(SIGTERM, intHandler);
+    signal(SIGTERM, intHandler);
 
     // Run process as daemon if called with option -d
     if((argc == 2)&&(argv[1][0] == '-')&&(argv[1][1] == 'd'))
@@ -167,7 +167,7 @@ int main(int argc, char** argv)
 
     // Listen and accept connections
     struct addrinfo *my_addr = NULL;
-    socket_fd = createSocketConnection(my_addr);
+    socket_fd = createSocketConnection(&my_addr);
     listen(socket_fd, BACKLOG);
     syslog(LOG_INFO, "Listening to connections on %d\n", socket_fd);
     struct sockaddr_storage client_addr;
@@ -204,38 +204,41 @@ int main(int argc, char** argv)
         // fd is the accepted socket, and will be used for sending/receiving data
         // Accept is a blocking function, but closing the socket exits the function
         int fd = accept(socket_fd, (struct sockaddr *)&(client_addr), &(addr_size));
-
-        // Create new thread
-        pthread_t thread;
-
-        // Prepare thread context
-        struct slist_data_s *slist_data_ptr = malloc(sizeof(struct slist_data_s));
-        slist_data_ptr->thread_data.fd = fd;
-        slist_data_ptr->thread_data.done = false;
-        slist_data_ptr->thread_data.client_addr = client_addr;
-        slist_data_ptr->thread_data.thread = &thread;
-        slist_data_ptr->thread_data.file_mutex = &file_mutex;
-
-        if(head.slh_first == NULL)
+        // If accept() unklocked by an abort signal, no accepted connection thread should be started
+        if(fd >= 0)
         {
-            SLIST_INSERT_HEAD(&head, slist_data_ptr, pointers);
-        }
-        else
-        {
-            // Insert new element after the head. No need to have any specific order
-            SLIST_INSERT_AFTER(head.slh_first,slist_data_ptr, pointers);
-        }
+            // Create new thread
+            pthread_t thread;
 
-        // Start thread with its internal data
-        struct CThreadInstance* data =  &(slist_data_ptr->thread_data);
-        int rc = pthread_create(&thread, NULL, threadfunc, data);
-        syslog(LOG_INFO, "New thread started, now %d ongoing\n", ++sizeQ);
-        // Need to free the dynamic allocated struct if pthread creation fails
-        if(rc != 0)
-        {
-            free(slist_data_ptr);
-            // Transmission is lost, directly waiting for next connection
-            continue;
+            // Prepare thread context
+            struct slist_data_s *slist_data_ptr = malloc(sizeof(struct slist_data_s));
+            slist_data_ptr->thread_data.fd = fd;
+            slist_data_ptr->thread_data.done = false;
+            slist_data_ptr->thread_data.client_addr = client_addr;
+            slist_data_ptr->thread_data.thread = &thread;
+            slist_data_ptr->thread_data.file_mutex = &file_mutex;
+
+            if(head.slh_first == NULL)
+            {
+                SLIST_INSERT_HEAD(&head, slist_data_ptr, pointers);
+            }
+            else
+            {
+                // Insert new element after the head. No need to have any specific order
+                SLIST_INSERT_AFTER(head.slh_first,slist_data_ptr, pointers);
+            }
+
+            // Start thread with its internal data
+            struct CThreadInstance* data =  &(slist_data_ptr->thread_data);
+            int rc = pthread_create(&thread, NULL, threadfunc, data);
+            syslog(LOG_INFO, "New thread started, now %d ongoing\n", ++sizeQ);
+            // Need to free the dynamic allocated struct if pthread creation fails
+            if(rc != 0)
+            {
+                free(slist_data_ptr);
+                // Transmission is lost, directly waiting for next connection
+                continue;
+            }
         }
 
         // Remove finished thread if any and release related allocated memory
@@ -248,7 +251,7 @@ int main(int argc, char** argv)
                 // Close thread, no return value
                 syslog(LOG_INFO, "Thread %d closed\n", elementP->thread_data.fd);
                 pthread_join(*(elementP->thread_data.thread),NULL);
-                close(fd);
+                close(elementP->thread_data.fd);
                 SLIST_REMOVE(&head, elementP, slist_data_s, pointers);
                 free(elementP);
                 sizeQ--;

@@ -92,24 +92,26 @@ void create_deamon()
 }
 
 /// Function initializing the socket, prepares the future connections
-int createSocketConnection(struct addrinfo* my_addr)
+int createSocketConnection(struct addrinfo** my_addr)
 {
     // Create socket and bind it to given port
     int socket_fd = socket(PF_INET, SOCK_STREAM, 0);
     // first, load up address structs with getaddrinfo():
     struct addrinfo hints;
-    memset(&hints, 0, sizeof hints);
+    memset((void*)&hints, 0, sizeof (struct addrinfo));
     hints.ai_family = AF_INET; // use IPv4 or IPv6, whichever
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // fill in my IP for me
-    int status = getaddrinfo(NULL, PORT, &hints, &my_addr);
+    // Beware that my_addr is a double pointer, because getaddrinfo changes the
+    // addrinfo pointer address.
+    int status = getaddrinfo(NULL, PORT, &hints, my_addr);
     if (status != 0 || my_addr == NULL)
     {
         return -1;
     }
 
     // Assign an address to the socket
-    bind(socket_fd, my_addr->ai_addr, sizeof(struct sockaddr));
+    bind(socket_fd, (*my_addr)->ai_addr, sizeof(struct sockaddr));
     syslog(LOG_INFO, "Socket created and binded, with file descriptor %d\n", socket_fd);
     return socket_fd;
 }
