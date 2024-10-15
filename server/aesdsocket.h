@@ -97,8 +97,16 @@ void create_deamon()
         // If operation failed, stop execution and return error
         perror("open");
     }
-    dup(0);
-    dup(0);
+    if(dup(0) != EXIT_SUCCESS)
+    {
+        // If operation failed, stop execution and return error
+        perror("dub");
+    }
+    if(dup(0) != EXIT_SUCCESS)
+    {
+        // If operation failed, stop execution and return error
+        perror("dub");
+    }
 }
 
 /// Function initializing the socket, prepares the future connections
