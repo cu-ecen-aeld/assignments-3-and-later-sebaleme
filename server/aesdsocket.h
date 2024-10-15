@@ -84,11 +84,21 @@ void create_deamon()
         exit(EXIT_FAILURE);
 
     // Change the working directory to the root directory so no possible error if unmount
-    chdir("/");
+    if(chdir("/") != EXIT_SUCCESS)
+    {
+        // If operation failed, stop execution and return error
+        perror("chdir");
+    }
 
     // Redirect stdin, stdout and stderr to /dev/null, so our daemon won t communicate through a console
     close(0); close(1); close(2);
-    open("/dev/null",O_RDWR); dup(0); dup(0);
+    if(open("/dev/null",O_RDWR) != EXIT_SUCCESS)
+    {
+        // If operation failed, stop execution and return error
+        perror("open");
+    }
+    dup(0);
+    dup(0);
 }
 
 /// Function initializing the socket, prepares the future connections
