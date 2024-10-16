@@ -2,12 +2,23 @@
 # Script to manage aesdsocket daemon
 # start-stop-daemon checks the existing process before launching a new deamon
 # so it is safer than directly starting your executable
+# Current implementation allows an autostart/stop if script is under /etc/init.d/
 
 NAME=aesdsocket
-DAEMON=~/workspace/assignments-3-and-later-sebaleme/server/aesdsocket #(x86)
-#DAEMON=/usr/bin/aesdsocket
 DAEMON_OPTS="-d"
 PIDFILE=/var/run/$NAME.pid
+
+if [ "$(uname -m)" = "aarch64" ]; then
+    DAEMON="/usr/bin/aesdsocket"
+elif [ "$(uname -m)" = "x86_64" ]; then
+    DAEMON="$HOME/workspace/assignments-3-and-later-sebaleme/server/aesdsocket"
+else
+    echo "Unsupported architecture"
+    exit 1
+fi
+
+echo "ARCH_DIR is set to: $DAEMON"
+
 
 case "$1" in
   start)
