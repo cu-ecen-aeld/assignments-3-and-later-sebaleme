@@ -12,7 +12,6 @@
 #include <linux/string.h>
 #else
 #include <string.h>
-#include <stdio.h>
 #endif
 #include <stdlib.h>
 #include "aesd-circular-buffer.h"
@@ -30,9 +29,15 @@
 struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct aesd_circular_buffer *buffer,
             size_t char_offset, size_t *entry_offset_byte_rtn )
 {
+    // if circular buffer does not exist or is empty, exit
+    if(!buffer || !buffer->entry)
+    {
+        return NULL;
+    }
     size_t accumulated_length = 0;
-    uint8_t entry_id = (buffer->out_offs -1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+    int8_t entry_id = (buffer->out_offs -1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     uint8_t offset = 0;
+
     // Iterating through circular buffer elements
     while(char_offset > accumulated_length)
     {
@@ -43,7 +48,6 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
         // The char_offset is higher than the total number of written elements in the circular buffer
         if((entry_id == buffer->in_offs)&&(char_offset > accumulated_length))
         {
-            printf("char_offset does not point to an existing element");
             return NULL;
         }
     }
@@ -63,7 +67,6 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     // Check if the current unsigned circular buffer pointer is valid
     if(buffer->in_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
     {
-        printf("error, in pointer is invalid, no new entry added");
         return;
     }
 
@@ -71,7 +74,6 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     if(buffer->in_offs + 1 == buffer->out_offs)
     {
         buffer->full = true;
-        printf("Entry %d has been overwritten since buffer is full", buffer->out_offs);
         free((char*)(buffer->entry[buffer->in_offs].buffptr));
         buffer->out_offs = (buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     }
