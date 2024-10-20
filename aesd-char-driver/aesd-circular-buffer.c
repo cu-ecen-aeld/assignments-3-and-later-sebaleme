@@ -12,12 +12,13 @@
 #include <linux/string.h>
 #else
 #include <string.h>
+#include <stdio.h>
 #endif
-
+#include <stdlib.h>
 #include "aesd-circular-buffer.h"
 
 /**
- * @param buffer the buffer to search for corresponding offset.  Any necessary locking must be performed by caller.
+ * @param buffer the buffer to search for corresponding offset. Any necessary locking must be performed by caller.
  * @param char_offset the position to search for in the buffer list, describing the zero referenced
  *      character index if all buffer strings were concatenated end to end
  * @param entry_offset_byte_rtn is a pointer specifying a location to store the byte of the returned aesd_buffer_entry
@@ -29,10 +30,25 @@
 struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct aesd_circular_buffer *buffer,
             size_t char_offset, size_t *entry_offset_byte_rtn )
 {
-    /**
-    * TODO: implement per description
-    */
-    return NULL;
+    size_t accumulated_length = 0;
+    uint8_t entry_id = (buffer->out_offs -1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+    uint8_t offset = 0;
+    // Iterating through circular buffer elements
+    while(char_offset > accumulated_length)
+    {
+        entry_id = (entry_id + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+        offset = char_offset - accumulated_length;
+        accumulated_length += buffer->entry[entry_id].size;
+
+        // The char_offset is higher than the total number of written elements in the circular buffer
+        if((entry_id == buffer->in_offs)&&(char_offset > accumulated_length))
+        {
+            printf("char_offset does not point to an existing element");
+            return NULL;
+        }
+    }
+    *entry_offset_byte_rtn = buffer->entry[entry_id].buffptr[offset];
+    return &(buffer->entry[entry_id]);
 }
 
 /**
@@ -44,9 +60,28 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 */
 void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
-    /**
-    * TODO: implement per description
-    */
+    // Check if the current unsigned circular buffer pointer is valid
+    if(buffer->in_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+    {
+        printf("error, in pointer is invalid, no new entry added");
+        return;
+    }
+
+    // If buffer full, make room for a new element
+    if(buffer->in_offs + 1 == buffer->out_offs)
+    {
+        buffer->full = true;
+        printf("Entry %d has been overwritten since buffer is full", buffer->out_offs);
+        free((char*)(buffer->entry[buffer->in_offs].buffptr));
+        buffer->out_offs = (buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+    }
+
+    // Create a new entry by copying the input entry into the heap.
+    char* newEntry = malloc(add_entry->size);
+    buffer->entry[buffer->in_offs].buffptr = newEntry;
+    buffer->entry[buffer->in_offs].size = add_entry->size;
+
+    buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
 }
 
 /**
