@@ -44,19 +44,27 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
     // Iterating through circular buffer elements
     while(char_offset > accumulated_length)
     {
+        // For each iteration, we accumulate the char number of each entry in accumulated_length, and we point to
+        // the next entry. We keep the remaining char_offset in offset
         accumulated_length += buffer->entry[entry_id].size;
         entry_id = (entry_id + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
         offset = char_offset - accumulated_length;
 
+        // If offset is negative, it means we went too far, and the remaining offset is targeting a character within the
+        // current entry_id. So we add back the string size to the offset. Entering this if means we will exit the loop
+        // in the next iteration.
         if(offset < 0)
         {
-            entry_id = (entry_id -1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED + AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+            printf("entry_id %d, buffer->entry[entry_id].size %ld, and offset is %d\n",entry_id, buffer->entry[entry_id].size, offset);
             offset += buffer->entry[entry_id].size;
         }
 
-        // The char_offset is higher than the total number of written elements in the circular buffer
+        // The char_offset is higher than the total number of written elements in the circular buffer.
+        // We detect this if we went back to the initial element (out_offs), and char offset is higher than the total
+        // number of chars we have accumulated. Both conditions together means char_offset is bigger than the total number
+        // of char in the buffer
         int16_t max_position = accumulated_length-1;
-        if((entry_id == buffer->in_offs)&&(char_offset > max_position))
+        if((entry_id == buffer->out_offs)&&(char_offset > max_position))
         {
             return NULL;
         }
