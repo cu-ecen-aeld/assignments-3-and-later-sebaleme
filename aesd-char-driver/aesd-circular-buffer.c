@@ -12,6 +12,8 @@
 #include <linux/string.h>
 #else
 #include <string.h>
+#include <stdio.h>
+
 #endif
 #include <stdlib.h>
 #include "aesd-circular-buffer.h"
@@ -34,24 +36,33 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
     {
         return NULL;
     }
-    size_t accumulated_length = 0;
-    int8_t entry_id = (buffer->out_offs -1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
-    uint8_t offset = 0;
+    // Beware of pointer arithmetic and overflows, use int values.
+    int16_t accumulated_length = 0;
+    int8_t entry_id = buffer->out_offs;
+    int16_t offset = char_offset;
 
     // Iterating through circular buffer elements
     while(char_offset > accumulated_length)
     {
+        accumulated_length += buffer->entry[entry_id].size;
         entry_id = (entry_id + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
         offset = char_offset - accumulated_length;
-        accumulated_length += buffer->entry[entry_id].size;
+
+        if(offset < 0)
+        {
+            entry_id = (entry_id -1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED + AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+            offset += buffer->entry[entry_id].size;
+        }
 
         // The char_offset is higher than the total number of written elements in the circular buffer
-        if((entry_id == buffer->in_offs)&&(char_offset > accumulated_length))
+        int16_t max_position = accumulated_length-1;
+        if((entry_id == buffer->in_offs)&&(char_offset > max_position))
         {
             return NULL;
         }
     }
-    *entry_offset_byte_rtn = buffer->entry[entry_id].buffptr[offset];
+    printf("offset is %d, accumulated_length is %d, and string is %s\n",offset, accumulated_length, buffer->entry[entry_id].buffptr);
+    *entry_offset_byte_rtn = offset;
     return &(buffer->entry[entry_id]);
 }
 
@@ -64,6 +75,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 */
 void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
+    printf("Writing element %s at index %d, read pointer is %d\n", add_entry->buffptr, buffer->in_offs, buffer->out_offs);
     // Check if the current unsigned circular buffer pointer is valid
     if(buffer->in_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
     {
@@ -71,16 +83,24 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     }
 
     // If buffer full, make room for a new element
-    if(buffer->in_offs + 1 == buffer->out_offs)
+    if(buffer->full)
     {
-        buffer->full = true;
         free((char*)(buffer->entry[buffer->in_offs].buffptr));
         buffer->out_offs = (buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     }
 
-    // Create a new entry by copying the input entry into the heap.
-    char* newEntry = malloc(add_entry->size);
-    buffer->entry[buffer->in_offs].buffptr = newEntry;
+    // If write buffer pointer about to catch read buffer, it means the buffer will be full
+    // after adding the current element
+    if((buffer->in_offs +1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED == buffer->out_offs)
+    {
+        buffer->full = true;
+    }
+
+    // Create a new entry in the circular buffer by copying the input entry into the heap.
+    char* newString = malloc(add_entry->size);
+    memcpy(newString, add_entry->buffptr, add_entry->size);
+    buffer->entry[buffer->in_offs].buffptr = newString;
+    // Will copy 18 characters from array1 to array2
     buffer->entry[buffer->in_offs].size = add_entry->size;
 
     buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
