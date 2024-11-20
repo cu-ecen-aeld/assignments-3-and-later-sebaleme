@@ -23,12 +23,18 @@
 #  define PDEBUG(fmt, args...) /* not debugging: nothing */
 #endif
 
+#include "aesd-circular-buffer.h"
+#include <pthread.h>
+
+// Char device has a mutex for exclusive access, a circular buffer to store the data 
+// and a buffer entry for handling not null terminated entries.
+// See https://www.coursera.org/learn/linux-kernel-programming-yocto-project/lecture/M2Ncq/assignment-8-overview 
 struct aesd_dev
 {
-    /**
-     * TODO: Add structure(s) and locks needed to complete assignment requirements
-     */
-    struct cdev cdev;     /* Char device structure      */
+     pthread_mutex_t *mutex;
+     struct aesd_buffer_entry entry;
+     struct aesd_circular_buffer bufferP;
+     struct cdev cdev;     /* Char device structure      */
 };
 
 
