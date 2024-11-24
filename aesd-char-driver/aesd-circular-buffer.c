@@ -56,7 +56,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
         // in the next iteration.
         if(offset < 0)
         {
-            //printf("entry_id %d, buffer->entry[entry_id].size %ld, and offset is %d\n",entry_id, buffer->entry[entry_id].size, offset);
+            PDEBUG("entry_id %d, buffer->entry[entry_id].size %ld, and offset is %d\n",entry_id, buffer->entry[entry_id].size, offset);
             offset += buffer->entry[entry_id].size;
         }
 
@@ -70,7 +70,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
             return NULL;
         }
     }
-    //printf("offset is %d, accumulated_length is %d, and string is %s\n",offset, accumulated_length, buffer->entry[entry_id].buffptr);
+    PDEBUG("offset is %d, accumulated_length is %d, and string is %s\n",offset, accumulated_length, buffer->entry[entry_id].buffptr);
     *entry_offset_byte_rtn = offset;
     return &(buffer->entry[entry_id]);
 }
@@ -84,7 +84,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 */
 void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
-    //printf("Writing element %s at index %d, read pointer is %d\n", add_entry->buffptr, buffer->in_offs, buffer->out_offs);
+    PDEBUG("Writing element %s at index %d, read pointer is %d\n", add_entry->buffptr, buffer->in_offs, buffer->out_offs);
     // Check if the current unsigned circular buffer pointer is valid
     if(buffer->in_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
     {

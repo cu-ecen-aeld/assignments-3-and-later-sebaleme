@@ -69,6 +69,9 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
      */
     return retval;
 }
+
+// Table mapping system calls to driver´s functions
+// The file_operations describes all the available behaviors of the driver
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
     .read =     aesd_read,
