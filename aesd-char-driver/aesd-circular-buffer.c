@@ -10,12 +10,13 @@
 
 #ifdef __KERNEL__
 #include <linux/string.h>
+#include <linux/slab.h>         // kmalloc()
 #else
 #include <string.h>
 #include <stdio.h>
-
-#endif
 #include <stdlib.h>
+#endif
+
 #include "aesd-circular-buffer.h"
 
 /**
@@ -55,7 +56,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
         // in the next iteration.
         if(offset < 0)
         {
-            printf("entry_id %d, buffer->entry[entry_id].size %ld, and offset is %d\n",entry_id, buffer->entry[entry_id].size, offset);
+            //printf("entry_id %d, buffer->entry[entry_id].size %ld, and offset is %d\n",entry_id, buffer->entry[entry_id].size, offset);
             offset += buffer->entry[entry_id].size;
         }
 
@@ -69,7 +70,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
             return NULL;
         }
     }
-    printf("offset is %d, accumulated_length is %d, and string is %s\n",offset, accumulated_length, buffer->entry[entry_id].buffptr);
+    //printf("offset is %d, accumulated_length is %d, and string is %s\n",offset, accumulated_length, buffer->entry[entry_id].buffptr);
     *entry_offset_byte_rtn = offset;
     return &(buffer->entry[entry_id]);
 }
@@ -83,7 +84,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 */
 void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
-    printf("Writing element %s at index %d, read pointer is %d\n", add_entry->buffptr, buffer->in_offs, buffer->out_offs);
+    //printf("Writing element %s at index %d, read pointer is %d\n", add_entry->buffptr, buffer->in_offs, buffer->out_offs);
     // Check if the current unsigned circular buffer pointer is valid
     if(buffer->in_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
     {
@@ -93,7 +94,7 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     // If buffer full, make room for a new element
     if(buffer->full)
     {
-        free((char*)(buffer->entry[buffer->in_offs].buffptr));
+        kfree((char*)(buffer->entry[buffer->in_offs].buffptr));
         buffer->out_offs = (buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     }
 
@@ -105,7 +106,7 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     }
 
     // Create a new entry in the circular buffer by copying the input entry into the heap.
-    char* newString = malloc(add_entry->size);
+    char* newString = kmalloc(add_entry->size, GFP_KERNEL);
     memcpy(newString, add_entry->buffptr, add_entry->size);
     buffer->entry[buffer->in_offs].buffptr = newString;
     // Will copy 18 characters from array1 to array2
