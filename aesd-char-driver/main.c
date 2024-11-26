@@ -27,13 +27,32 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 struct aesd_dev aesd_device;
 
+void clean_aesd(void)
+{
+    uint8_t index;
+    struct aesd_buffer_entry *entry;
+    AESD_CIRCULAR_BUFFER_FOREACH(entry,&aesd_device.bufferP,index) {
+        kfree(entry->buffptr);
+    }
+}
+
+
 // System call implementation
 int aesd_open(struct inode *inode, struct file *filp)
 {
     PDEBUG("open");
-    /**
-     * TODO: handle open
-     */
+
+    struct aesd_dev *dev; /* device information */
+    dev = container_of(inode->i_cdev, struct aesd_dev, cdev);
+    filp->private_data = dev; /* for other methods */
+
+    // Clear circular buffer if open in read only
+    if ( (filp->f_flags & O_ACCMODE) == O_WRONLY) {
+        if (mutex_lock_interruptible(&dev->lock))
+            return -ERESTARTSYS;
+        clean_aesd(); /* ignore errors */
+        mutex_unlock(&dev->lock);
+    }
     return 0;
 }
 
@@ -107,11 +126,10 @@ int aesd_init_module(void)
         printk(KERN_WARNING "Can't get major %d\n", aesd_major);
         return result;
     }
+    // Here, the device, the circular buffer and the circular buffer entry are initialized
     memset(&aesd_device,0,sizeof(struct aesd_dev));
-
-    /**
-     * TODO: initialize the AESD specific portion of the device
-     */
+    aesd_circular_buffer_init(&aesd_device.bufferP);
+    aesd_device.entry.buffptr = NULL;
 
     result = aesd_setup_cdev(&aesd_device);
 
@@ -127,11 +145,7 @@ void aesd_cleanup_module(void)
     dev_t devno = MKDEV(aesd_major, aesd_minor);
 
     cdev_del(&aesd_device.cdev);
-
-    /**
-     * TODO: cleanup AESD specific poritions here as necessary
-     */
-
+    clean_aesd();
     unregister_chrdev_region(devno, 1);
 }
 

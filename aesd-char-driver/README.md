@@ -11,3 +11,6 @@ or
 
 See this page for documentation list
 https://stackoverflow.com/questions/47052640/c-linux-using-pthread-h-in-kernel
+
+See also this docs which is another sum up of the book (explained how the scull drived is called from user space):
+https://www-users.cselabs.umn.edu/Fall-2019/csci5103/slides/week14_device_drivers_post.pdf
