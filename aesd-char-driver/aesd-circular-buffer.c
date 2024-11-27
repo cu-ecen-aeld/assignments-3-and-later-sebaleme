@@ -11,10 +11,14 @@
 #ifdef __KERNEL__
 #include <linux/string.h>
 #include <linux/slab.h>         // kmalloc()
+#define FREE kfree
+#define MALLOC(data) kmalloc(data,GFP_KERNEL)
 #else
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#define FREE free
+#define MALLOC(data) malloc(data)
 #endif
 
 #include "aesd-circular-buffer.h"
@@ -94,11 +98,7 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     // If buffer full, make room for a new element
     if(buffer->full)
     {
-#ifdef __KERNEL__
-        kfree((char*)(buffer->entry[buffer->in_offs].buffptr));
-#else
-        free((char*)(buffer->entry[buffer->in_offs].buffptr));
-#endif
+        FREE((char*)(buffer->entry[buffer->in_offs].buffptr));
         buffer->out_offs = (buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     }
 
@@ -110,11 +110,7 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     }
 
     // Create a new entry in the circular buffer by copying the input entry into the heap.
-#ifdef __KERNEL__
-    char* newString = kmalloc(add_entry->size, GFP_KERNEL);
-#else
-    char* newString = malloc(add_entry->size);
-#endif
+    char* newString = MALLOC(add_entry->size);
     memcpy(newString, add_entry->buffptr, add_entry->size);
     buffer->entry[buffer->in_offs].buffptr = newString;
     // Will copy 18 characters from array1 to array2
