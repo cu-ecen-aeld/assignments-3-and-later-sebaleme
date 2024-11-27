@@ -71,10 +71,27 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 {
     ssize_t retval = 0;
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
-    /**
-     * TODO: handle read
-     */
-    return retval;
+    struct aesd_dev *dev = filp->private_data; 
+
+    if (mutex_lock_interruptible(&dev->lock))
+        return -ERESTARTSYS;
+    if (*f_pos >= dev->size)
+        goto out;
+    if (*f_pos + count > dev->size)
+        count = dev->size - *f_pos;
+    
+    //aesd_circular_buffer_find_entry_offset_for_fpos(dev->bufferP, f_pos, );
+    if (copy_to_user(buf, dev->bufferP.entry[dev->bufferP.out_offs].buffptr, count)) {
+        retval = -EFAULT;
+        goto out;
+    }
+    dev->bufferP.out_offs +=1;
+	*f_pos += count;
+	retval = count;
+
+    out:
+        mutex_unlock(&dev->lock);
+        return retval;
 }
 
 // System call implementation
@@ -83,9 +100,20 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 {
     ssize_t retval = -ENOMEM;
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
-    /**
-     * TODO: handle write
-     */
+    struct aesd_dev *dev = filp->private_data; 
+
+    if (mutex_lock_interruptible(&dev->lock))
+        return -ERESTARTSYS;
+
+    if (copy_from_user(dev->entry.buffptr, buf, count)) {
+        retval = -EFAULT;
+        goto out;
+    }
+    aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
+    *f_pos += count;
+    retval = count;
+  out:
+    mutex_unlock(&dev->lock);
     return retval;
 }
 

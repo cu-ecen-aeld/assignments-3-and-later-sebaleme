@@ -25,6 +25,15 @@
 
 #include "aesd-circular-buffer.h"
 
+// Functions prototypes
+void clean_aesd(void);
+int aesd_open(struct inode *inode, struct file *filp);
+int aesd_release(struct inode *inode, struct file *filp);
+ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,loff_t *f_pos);
+ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,loff_t *f_pos);
+int aesd_init_module(void);
+void aesd_cleanup_module(void);
+
 // Char device has a mutex for exclusive access, a circular buffer to store the data 
 // and a buffer entry for handling not null terminated entries.
 // See https://www.coursera.org/learn/linux-kernel-programming-yocto-project/lecture/M2Ncq/assignment-8-overview 
@@ -32,7 +41,8 @@ struct aesd_dev
 {
      struct aesd_buffer_entry entry;       /* buffer for partial data    */
      struct aesd_circular_buffer bufferP;  /* data buffer                */
-	struct mutex lock;                    /* mutual exclusion semaphore */
+     unsigned long size;                   /* amount of data stored here */
+     struct mutex lock;                    /* mutual exclusion semaphore */
      struct cdev cdev;                     /* Char device structure      */
 };
 
