@@ -11,11 +11,12 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/printk.h>
-#include <linux/types.h>
 #include <linux/cdev.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/printk.h>
+#include <linux/slab.h>         // kmalloc()
+#include <linux/types.h>
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
 
@@ -109,6 +110,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         retval = -EFAULT;
         goto out;
     }
+    // TODO: get return value and free memory is entry was replaced
     aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
     *f_pos += count;
     retval = count;
