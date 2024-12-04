@@ -37,6 +37,19 @@ void clean_aesd(void)
     }
 }
 
+// Return the position of the first EOL char in char array
+int checkEOLChar(const char* buff, const int size)
+{
+    for(int i=0; i<size; i++)
+    {
+        if(buff[i]=='\0')
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 
 // System call implementation
 int aesd_open(struct inode *inode, struct file *filp)
@@ -105,13 +118,87 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
     if (mutex_lock_interruptible(&dev->lock))
         return -ERESTARTSYS;
+    
+    // We have 4 uses cases here.
+    // Cases with empty entry buffer:
+    // - New write terminated by an EOL charater: write in entry buffer, copy in circular buffer and free entry buffer
+    // - New write without EOL character: write in entry buffer
+    // Cases with filled entry buffer:
+    // - New write terminated by an EOL charater: kmalloc a new entry with the concatenated char arrays and free previous
+    //   instance, copy in circular buffer and free entry buffer
+    // - New write without EOL character: kmalloc a new entry with the concatenated char arrays and free previous instance
 
-    if (copy_from_user(dev->entry.buffptr, buf, count)) {
-        retval = -EFAULT;
-        goto out;
+    // Partial write ongoing
+    if(dev->entry.buffptr)
+    {
+        int newSize = count+dev->entry.size;
+        char* newString = kmalloc(newSize,GFP_KERNEL);
+        memcpy(newString, dev->entry.buffptr, dev->entry.size);
+        if (copy_from_user(newString, buf, count)) {
+            retval = -EFAULT;
+            goto out;
+        }
+        // Replace the entry buffer with the new content
+        kfree(dev->entry.buffptr);
+        dev->entry.buffptr = newString;
+        dev->entry.size = newSize;
+
+        // Now check if current write has EOL character
+        int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
+        if(EOLPos == count-1)
+        {
+            struct aesd_buffer_entry* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
+            if(entryToRemove)
+            {
+                kfree(entryToRemove->buffptr);
+            }
+            // Remove the content from the entry buffer since moved to circular buffer
+            dev->entry.buffptr = NULL;
+            dev->entry.size = 0;
+
+        }
+        else if(EOLPos < 0)
+        {
+            // No EOL char, meaning we only store in entry buffer
+        }
+        else
+        {
+            // EOL char found inside the char array
+        }
     }
-    // TODO: get return value and free memory is entry was replaced
-    aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
+    else
+    {
+        // Since entry buffer was not used, we can directly allocate it
+        dev->entry.buffptr = kmalloc(count,GFP_KERNEL);
+        dev->entry.size = count;
+        if (copy_from_user(dev->entry.buffptr, buf, dev->entry.size)) {
+            retval = -EFAULT;
+            goto out;
+        }
+        // Now check if current write has EOL character
+        int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
+        if(EOLPos == count-1)
+        {
+            struct aesd_buffer_entry* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
+            if(entryToRemove)
+            {
+                kfree(entryToRemove->buffptr);
+            }
+            // Remove the content from the entry buffer since moved to circular buffer
+            dev->entry.buffptr = NULL;
+            dev->entry.size = 0;
+        }
+        else if(EOLPos < 0)
+        {
+            // No EOL char, meaning we only store in entry buffer
+        }
+        else
+        {
+            // EOL char found inside the char array
+            // For now ignored, but we might have to create an entry in the curcular buffer with the content before EOL char
+        }
+    }
+
     *f_pos += count;
     retval = count;
   out:

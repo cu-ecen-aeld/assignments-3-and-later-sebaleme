@@ -27,6 +27,7 @@
 
 // Functions prototypes
 void clean_aesd(void);
+int checkEOLChar(const char* buff, const int size);
 int aesd_open(struct inode *inode, struct file *filp);
 int aesd_release(struct inode *inode, struct file *filp);
 ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,loff_t *f_pos);
