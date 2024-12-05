@@ -132,6 +132,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     // Partial write ongoing
     if(dev->entry.buffptr)
     {
+        PDEBUG("Proceeding a partial write");
         int newSize = count+dev->entry.size;
         char* newString = kmalloc(newSize,GFP_KERNEL);
         memcpy(newString, dev->entry.buffptr, dev->entry.size);
@@ -146,6 +147,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
         // Now check if current write has EOL character
         int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
+        PDEBUG("Found EOL chat at pos %zu ", EOLPos);
         if(EOLPos == count-1)
         {
             struct aesd_buffer_entry* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
@@ -169,6 +171,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     }
     else
     {
+        PDEBUG("Starting a new write session");
         // Since entry buffer was not used, we can directly allocate it
         dev->entry.buffptr = kmalloc(count,GFP_KERNEL);
         dev->entry.size = count;
@@ -178,6 +181,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         }
         // Now check if current write has EOL character
         int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
+        PDEBUG("Found EOL chat at pos %zu ", EOLPos);
         if(EOLPos == count-1)
         {
             struct aesd_buffer_entry* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
@@ -204,6 +208,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     retval = count;
   out:
     mutex_unlock(&dev->lock);
+    PDEBUG("%zu bytes were written",retval);
     return retval;
 }
 
