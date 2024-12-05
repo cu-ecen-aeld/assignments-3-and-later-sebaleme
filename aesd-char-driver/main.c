@@ -40,7 +40,8 @@ void clean_aesd(void)
 // Return the position of the first EOL char in char array
 int checkEOLChar(const char* buff, const int size)
 {
-    for(int i=0; i<size; i++)
+    int i;
+    for(i=0; i<size; i++)
     {
         if(buff[i]=='\0')
         {
