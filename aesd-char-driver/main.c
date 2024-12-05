@@ -43,7 +43,7 @@ int checkEOLChar(const char* buff, const int size)
     int i;
     for(i=0; i<size; i++)
     {
-        if(buff[i]=='\0')
+        if(buff[i]=='\n')
         {
             return i;
         }
@@ -147,7 +147,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
         // Now check if current write has EOL character
         int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
-        PDEBUG("Found EOL chat at pos %zu ", EOLPos);
+        PDEBUG("Found EOL char at pos %d ", EOLPos);
         if(EOLPos == count-1)
         {
             struct aesd_buffer_entry* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
@@ -163,10 +163,12 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         else if(EOLPos < 0)
         {
             // No EOL char, meaning we only store in entry buffer
+            PDEBUG("Written in entry buffer");
         }
         else
         {
             // EOL char found inside the char array
+            PDEBUG("Written in entry buffer");
         }
     }
     else
@@ -181,7 +183,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         }
         // Now check if current write has EOL character
         int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
-        PDEBUG("Found EOL chat at pos %zu ", EOLPos);
+        PDEBUG("Found EOL char at pos %d ", EOLPos);
         if(EOLPos == count-1)
         {
             struct aesd_buffer_entry* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
@@ -196,10 +198,12 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         else if(EOLPos < 0)
         {
             // No EOL char, meaning we only store in entry buffer
+            PDEBUG("Written in entry buffer");
         }
         else
         {
             // EOL char found inside the char array
+            PDEBUG("Written in entry buffer");
             // For now ignored, but we might have to create an entry in the curcular buffer with the content before EOL char
         }
     }
