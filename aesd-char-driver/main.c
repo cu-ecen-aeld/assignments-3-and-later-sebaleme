@@ -90,6 +90,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     bool lastNonZeroReadCurrentEntry = false;
     struct aesd_dev *dev = filp->private_data;
     size_t entrySize = dev->bufferP.entry[dev->bufferP.out_offs].size;
+    PDEBUG("Currently handling entry %u containing %zu bytes",dev->bufferP.out_offs,entrySize);
 
     if (mutex_lock_interruptible(&dev->lock)) {
         return -ERESTARTSYS;
@@ -111,7 +112,6 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         PDEBUG("Don t read outside the buffer entry, last read is only %zu", count);
     }
 
-    //aesd_circular_buffer_find_entry_offset_for_fpos(dev->bufferP, f_pos, );
     if (copy_to_user(buf, dev->bufferP.entry[dev->bufferP.out_offs].buffptr, count)) {
         retval = -EFAULT;
         goto out;
