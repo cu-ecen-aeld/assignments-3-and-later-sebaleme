@@ -95,6 +95,10 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     }
     if (*f_pos >= entrySize) {
         PDEBUG("Next data to be read is outside of a block entry, %lu, so do nothing", entrySize);
+        // The open system call keep calling read until 0 is returned (the all entry has been read).
+        // This is the case now, all the content has been read and this call returns 0, so update buffer
+        // now.
+        dev->bufferP.out_offs +=1;
         goto out;
     }
     if (*f_pos + count > entrySize) {
@@ -108,7 +112,6 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         goto out;
     }
     PDEBUG("Read %zu bytes from entry %u of the circular buffer",count, dev->bufferP.out_offs);
-    dev->bufferP.out_offs +=1;
 	*f_pos += count;
 	retval = count;
     PDEBUG("Returns %zd bytes with new offset %lld, new read pointer set to %u",retval,*f_pos, dev->bufferP.out_offs);
