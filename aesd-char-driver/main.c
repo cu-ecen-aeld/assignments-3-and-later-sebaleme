@@ -87,6 +87,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 {
     ssize_t retval = 0;
     PDEBUG("Request %zu bytes read with offset %lld",count,*f_pos);
+    bool lastNonZeroReadCurrentEntry = false;
     struct aesd_dev *dev = filp->private_data;
     size_t entrySize = dev->bufferP.entry[dev->bufferP.out_offs].size;
 
@@ -98,16 +99,15 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         PDEBUG("No entrie was written yet, so do nothing");
         goto out;
     }
-    if (*f_pos >= entrySize) {
-        PDEBUG("Next data to be read is outside of a block entry, %lu, so do nothing", entrySize);
-        // The open system call keeps calling aesd_read until 0 is returned (the all entry has been read).
-        // This is the case now, all the content has been read and this call returns 0, so update the 
-        // read buffer now.
-        dev->bufferP.out_offs +=1;
+    // Once the 10 last written buffer entries were read, stop the loop
+    if((dev->stop)&&(0 == dev->bufferP.out_offs))
+    {
+        PDEBUG("No entrie was written yet, so do nothing");
         goto out;
     }
     if (*f_pos + count > entrySize) {
         count = entrySize - *f_pos;
+        lastNonZeroReadCurrentEntry = true;
         PDEBUG("Don t read outside the buffer entry, last read is only %zu", count);
     }
 
@@ -117,11 +117,18 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         goto out;
     }
     PDEBUG("Read %zu bytes from entry %u of the circular buffer",count, dev->bufferP.out_offs);
-	*f_pos += count;
-	retval = count;
-    PDEBUG("Returns %zd bytes with new offset %lld, new read pointer set to %u",retval,*f_pos, dev->bufferP.out_offs);
-
+    *f_pos += count;
+    retval = count;
+    dev->stop = true;
+    // Next call, read next buffer entry
+    if(lastNonZeroReadCurrentEntry)
+    {
+        dev->bufferP.out_offs +=1 %  AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+        // Reinitialize position
+        *f_pos = 0;
+    }
     out:
+        PDEBUG("Returns %zd bytes with new offset %lld, new read pointer set to %u",retval,*f_pos, dev->bufferP.out_offs);
         mutex_unlock(&dev->lock);
         return retval;
 }

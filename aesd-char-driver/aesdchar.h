@@ -40,11 +40,12 @@ void aesd_cleanup_module(void);
 // See https://www.coursera.org/learn/linux-kernel-programming-yocto-project/lecture/M2Ncq/assignment-8-overview 
 struct aesd_dev
 {
-     struct aesd_buffer_entry entry;       /* buffer for partial data    */
-     struct aesd_circular_buffer bufferP;  /* data buffer                */
+     struct aesd_buffer_entry entry;       /* buffer for partial data     */
+     struct aesd_circular_buffer bufferP;  /* data buffer                 */
+     bool stop;                            /* End condition for read loop */
      //unsigned long size;                   /* amount of data stored here */
-     struct mutex lock;                    /* mutual exclusion semaphore */
-     struct cdev cdev;                     /* Char device structure      */
+     struct mutex lock;                    /* mutual exclusion semaphore  */
+     struct cdev cdev;                     /* Char device structure       */
 };
 
 
