@@ -62,13 +62,11 @@ int aesd_open(struct inode *inode, struct file *filp)
     dev = container_of(inode->i_cdev, struct aesd_dev, cdev);
     filp->private_data = dev; /* for other methods */
 
-    // Clear circular buffer if open in read only
-    if ( (filp->f_flags & O_ACCMODE) == O_WRONLY) {
-        if (mutex_lock_interruptible(&dev->lock))
-            return -ERESTARTSYS;
-        clean_aesd(); /* ignore errors */
-        mutex_unlock(&dev->lock);
-    }
+    // Note: for usual files, open in write only mode (echo "" >) leads to erase the previous content
+    // and open in appending mode (open "" >>) just write at the end of the file.
+    // In aesdchar, this is not the case, we always append the previous content in another buffer entry,
+    // and once the complete circular buffer size has been written, then we overwrite the oldest content,
+    // regardless of the mode used to open the device (> or >>).
     return 0;
 }
 
@@ -82,6 +80,8 @@ int aesd_release(struct inode *inode, struct file *filp)
 }
 
 // System call implementation
+// Return the content (or partial content) related to the most recent 10 write commands, in the order
+// they were received, on any read attempt.
 ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
@@ -119,6 +119,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 }
 
 // System call implementation
+// Write position (f_pos) and write file offsets can be ignored on this assignment
 ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
