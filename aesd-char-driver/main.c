@@ -283,12 +283,12 @@ int aesd_init_module(void)
     aesd_circular_buffer_init(&aesd_device.bufferP);
     aesd_device.entry.buffptr = NULL;
     result = aesd_setup_cdev(&aesd_device);
+	mutex_init(&aesd_device.lock);
 
     if( result ) {
         unregister_chrdev_region(dev, 1);
     }
     return result;
-
 }
 
 void aesd_cleanup_module(void)
