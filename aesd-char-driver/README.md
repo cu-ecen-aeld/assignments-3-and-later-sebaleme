@@ -20,5 +20,11 @@ https://www-users.cselabs.umn.edu/Fall-2019/csci5103/slides/week14_device_driver
 
 # Debugging
 
+Meaning of the printf types:
+    - %zu  : Stands for size_t, which is an unsigned integer type
+    - %lld : Stands for a long long int in signed integer form.
+    - %d   : Stands for signed integer type.
+More here: https://www.geeksforgeeks.org/format-specifiers-in-c/
+
 Debug messages can be read with dmesg application: 
  dmesg | tail -n 20

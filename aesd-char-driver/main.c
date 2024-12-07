@@ -32,6 +32,7 @@ void clean_aesd(void)
 {
     uint8_t index;
     struct aesd_buffer_entry *entry;
+    PDEBUG("Erase device");
     AESD_CIRCULAR_BUFFER_FOREACH(entry,&aesd_device.bufferP,index) {
         kfree(entry->buffptr);
     }
@@ -85,7 +86,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
     ssize_t retval = 0;
-    PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
+    PDEBUG("Request %zu bytes read with offset %lld",count,*f_pos);
     struct aesd_dev *dev = filp->private_data; 
 
     if (mutex_lock_interruptible(&dev->lock))
@@ -100,9 +101,11 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         retval = -EFAULT;
         goto out;
     }
+    PDEBUG("Read %zu bytes from entry %u of the circular buffer",count, dev->bufferP.out_offs);
     dev->bufferP.out_offs +=1;
 	*f_pos += count;
 	retval = count;
+    PDEBUG("Returns %zd bytes with new offset %lld, new read pointer set to %u",retval,*f_pos, dev->bufferP.out_offs);
 
     out:
         mutex_unlock(&dev->lock);
@@ -114,7 +117,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
     ssize_t retval = -ENOMEM;
-    PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
+    PDEBUG("Request write %zu bytes with offset %lld",count,*f_pos);
     struct aesd_dev *dev = filp->private_data; 
 
     if (mutex_lock_interruptible(&dev->lock))
@@ -212,7 +215,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     retval = count;
   out:
     mutex_unlock(&dev->lock);
-    PDEBUG("%zu bytes were written",retval);
+    PDEBUG("%zd bytes were written",retval);
     return retval;
 }
 
