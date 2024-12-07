@@ -123,7 +123,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     // Next call, read next buffer entry
     if(lastNonZeroReadCurrentEntry)
     {
-        dev->bufferP.out_offs +=1 %  AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+        dev->bufferP.out_offs = (dev->bufferP.out_offs + 1) %  AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
         // Reinitialize position
         *f_pos = 0;
     }
