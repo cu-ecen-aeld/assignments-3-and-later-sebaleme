@@ -87,15 +87,21 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 {
     ssize_t retval = 0;
     PDEBUG("Request %zu bytes read with offset %lld",count,*f_pos);
-    struct aesd_dev *dev = filp->private_data; 
+    struct aesd_dev *dev = filp->private_data;
+    size_t entrySize = dev->bufferP.entry[dev->bufferP.out_offs].size;
 
-    if (mutex_lock_interruptible(&dev->lock))
+    if (mutex_lock_interruptible(&dev->lock)) {
         return -ERESTARTSYS;
-    if (*f_pos >= dev->size)
+    }
+    if (*f_pos >= entrySize) {
+        PDEBUG("Next data to be read is outside of a block entry, %lu, so do nothing", entrySize);
         goto out;
-    if (*f_pos + count > dev->size)
-        count = dev->size - *f_pos;
-    
+    }
+    if (*f_pos + count > entrySize) {
+        count = entrySize - *f_pos;
+        PDEBUG("Don t read outside the buffer entry, last read is only %zu", count);
+    }
+
     //aesd_circular_buffer_find_entry_offset_for_fpos(dev->bufferP, f_pos, );
     if (copy_to_user(buf, dev->bufferP.entry[dev->bufferP.out_offs].buffptr, count)) {
         retval = -EFAULT;
@@ -260,7 +266,6 @@ int aesd_init_module(void)
     memset(&aesd_device,0,sizeof(struct aesd_dev));
     aesd_circular_buffer_init(&aesd_device.bufferP);
     aesd_device.entry.buffptr = NULL;
-
     result = aesd_setup_cdev(&aesd_device);
 
     if( result ) {
