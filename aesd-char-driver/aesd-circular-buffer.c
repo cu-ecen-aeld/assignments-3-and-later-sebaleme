@@ -31,8 +31,8 @@
 struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct aesd_circular_buffer *buffer,
             size_t char_offset, size_t *entry_offset_byte_rtn )
 {
-    // if circular buffer does not exist or is empty, exit
-    if(!buffer || !buffer->entry)
+    // if circular buffer does not exist, exit. C-array cannot be empty
+    if(!buffer)
     {
         return NULL;
     }
