@@ -167,7 +167,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         int newSize = count+dev->entry.size;
         char* newString = kmalloc(newSize,GFP_KERNEL);
         memcpy(newString, dev->entry.buffptr, dev->entry.size);
-        if (copy_from_user(newString, buf, count)) {
+        // Here we do pointer arithmetic to concatenate previous and new content
+        if (copy_from_user(newString + dev->entry.size, buf, count)) {
             retval = -EFAULT;
             goto out;
         }
@@ -181,7 +182,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         PDEBUG("Found EOL char at pos %d ", EOLPos);
         if(EOLPos == count-1)
         {
-            char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
+            const char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
             if(entryToRemove)
             {
                 PDEBUG("Removing entry: %s", entryToRemove);
