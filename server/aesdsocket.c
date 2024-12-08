@@ -17,7 +17,7 @@
 #include "queue_bsd.h"
 
 #define BACKLOG 10
-#define FILEPATH "/var/tmp/aesdsocketdata"
+#define FILEPATH "/dev/aesdchar"
 #define BUFFER_SIZE 2000
 #define MAX_BUFFER_SIZE 50000
 #define TIMEGAP_USECOND 10000000 //10s
@@ -181,21 +181,22 @@ int main(int argc, char** argv)
     pthread_mutex_t file_mutex;
     pthread_mutex_init(&file_mutex, NULL);
 
+    // We remove TS printing in assignment 8
     // Create new thread for writing timestamps
-    pthread_t ts_thread;
-    struct CThreadInstance* ts_thread_data =  malloc(sizeof(struct CThreadInstance));
-    ts_thread_data->thread = &ts_thread;
-    ts_thread_data->file_mutex = &file_mutex;
-    int rc = pthread_create(&ts_thread, NULL, timestamp_func, ts_thread_data);
+    //pthread_t ts_thread;
+    //struct CThreadInstance* ts_thread_data =  malloc(sizeof(struct CThreadInstance));
+    //ts_thread_data->thread = &ts_thread;
+    //ts_thread_data->file_mutex = &file_mutex;
+    //int rc = pthread_create(&ts_thread, NULL, timestamp_func, ts_thread_data);
     // Need to free the dynamic allocated struct if pthread creation fails
-    if(rc != 0)
-    {
-        syslog(LOG_INFO, "timestamp thread could not be started: %d\n", errno);
-    }
-    else
-    {
-        syslog(LOG_INFO, "timestamp thread started, now %d ongoing\n", ++sizeQ);
-    }
+    //if(rc != 0)
+    //{
+    //    syslog(LOG_INFO, "timestamp thread could not be started: %d\n", errno);
+    //}
+    //else
+    //{
+    //    syslog(LOG_INFO, "timestamp thread started, now %d ongoing\n", ++sizeQ);
+    //}
 
     while(keepRunning)
     {
@@ -259,8 +260,8 @@ int main(int argc, char** argv)
     }
 
     // Terminate the timestamp thread
-    pthread_join(ts_thread,NULL);
-    free(ts_thread_data);
+    //pthread_join(ts_thread,NULL);
+    //free(ts_thread_data);
     sizeQ--;
     syslog(LOG_INFO, "Exiting the socket server program, %d thread still active\n", sizeQ);
     usleep(WAIT_DELAY);
