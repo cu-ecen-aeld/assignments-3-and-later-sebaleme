@@ -83,7 +83,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 */
 char* aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
-    char* resultP = NULL;
+    const char* resultP = NULL;
     // Printing %s leads to a strange behavior, because it only stops at the first \0 char, which we are not writing. So the print
     // overflows and print until a \0 is found in memory. Adding this \0 during write is not that trivial, hence not done yet.
     PDEBUG("Writing element %s at write pointer %d, read pointer is %d\n", add_entry->buffptr, buffer->in_offs, buffer->out_offs);
