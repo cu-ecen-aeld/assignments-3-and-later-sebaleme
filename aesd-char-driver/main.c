@@ -118,7 +118,11 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         retval = -EFAULT;
         goto out;
     }
-    PDEBUG("Read %zu bytes from entry %u of the circular buffer",count, dev->bufferP.out_offs);
+    PDEBUG("Read %s, %zu bytes from entry %u of the circular buffer",
+                dev->bufferP.entry[dev->bufferP.out_offs].buffptr,
+                count, 
+                dev->bufferP.out_offs
+    );
     *f_pos += count;
     retval = count;
     dev->readCounter += 1;
@@ -180,6 +184,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             struct aesd_buffer_entry* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
             if(entryToRemove)
             {
+                PDEBUG("Removing entry: %s", entryToRemove->buffptr);
                 kfree(entryToRemove->buffptr);
             }
             // Remove the content from the entry buffer since moved to circular buffer
