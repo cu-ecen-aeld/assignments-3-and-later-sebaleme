@@ -19,6 +19,14 @@ fi
 
 echo "ARCH_DIR is set to: $DAEMON"
 
+# Check if char device is available
+if [ -e /dev/aesdchar ]; then
+    echo "Device node /dev/aesdchar exists:"
+    ls -ll /dev/aesdchar
+else
+    echo "Device node /dev/aesdchar does not exist."
+fi
+
 
 case "$1" in
   start)
