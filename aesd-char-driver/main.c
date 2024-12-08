@@ -180,7 +180,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         // Now check if current write has EOL character
         int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
         PDEBUG("Found EOL char at pos %d ", EOLPos);
-        if(EOLPos == count-1)
+        if(EOLPos == dev->entry.size-1)
         {
             const char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
             if(entryToRemove)
@@ -217,7 +217,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         // Now check if current write has EOL character
         int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
         PDEBUG("Found EOL char at pos %d ", EOLPos);
-        if(EOLPos == count-1)
+        if(EOLPos == dev->entry.size-1)
         {
             const char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
             if(entryToRemove)
