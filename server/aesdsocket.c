@@ -162,9 +162,6 @@ int main(int argc, char** argv)
         create_deamon();
     }
 
-    // Delete output file if already exists
-    remove(FILEPATH);
-
     // Listen and accept connections
     struct addrinfo *my_addr = NULL;
     socket_fd = createSocketConnection(&my_addr);
