@@ -48,5 +48,7 @@ struct aesd_dev
      struct cdev cdev;                     /* Char device structure       */
 };
 
+// This prototype has to happen after its input definition
+void write_entry_into_buffer(struct aesd_dev *dev);
 
 #endif /* AESD_CHAR_DRIVER_AESDCHAR_H_ */

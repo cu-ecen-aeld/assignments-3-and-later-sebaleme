@@ -52,6 +52,35 @@ int checkEOLChar(const char* buff, const int size)
     return -1;
 }
 
+// Check if single entry should be written into circular buffer
+void write_entry_into_buffer(struct aesd_dev *dev)
+{
+        // Now check if current write has EOL character
+        int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
+        PDEBUG("Found EOL char at pos %d ", EOLPos);
+        if(EOLPos == dev->entry.size-1)
+        {
+            const char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
+            if(entryToRemove)
+            {
+                PDEBUG("Removing entry: %s", entryToRemove);
+                kfree(entryToRemove);
+            }
+            // Remove the content from the entry buffer since moved to circular buffer
+            dev->entry.buffptr = NULL;
+            dev->entry.size = 0;
+        }
+        else if(EOLPos < 0)
+        {
+            // No EOL char, meaning we only store in entry buffer
+            PDEBUG("Written in entry buffer");
+        }
+        else
+        {
+            // EOL char found inside the char array
+            PDEBUG("Written in entry buffer");
+        }
+}
 
 // System call implementation
 int aesd_open(struct inode *inode, struct file *filp)
@@ -185,32 +214,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         dev->entry.buffptr = newString;
         dev->entry.size = newSize;
 
-        // Now check if current write has EOL character
-        int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
-        PDEBUG("Found EOL char at pos %d ", EOLPos);
-        if(EOLPos == dev->entry.size-1)
-        {
-            const char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
-            if(entryToRemove)
-            {
-                PDEBUG("Removing entry: %s", entryToRemove);
-                kfree(entryToRemove);
-            }
-            // Remove the content from the entry buffer since moved to circular buffer
-            dev->entry.buffptr = NULL;
-            dev->entry.size = 0;
-
-        }
-        else if(EOLPos < 0)
-        {
-            // No EOL char, meaning we only store in entry buffer
-            PDEBUG("Written in entry buffer");
-        }
-        else
-        {
-            // EOL char found inside the char array
-            PDEBUG("Written in entry buffer");
-        }
+        write_entry_into_buffer(dev);
     }
     else
     {
@@ -222,33 +226,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
             retval = -EFAULT;
             goto out;
         }
-        // Now check if current write has EOL character
-        int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
-        PDEBUG("Found EOL char at pos %d ", EOLPos);
-        if(EOLPos == dev->entry.size-1)
-        {
-            const char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
-            if(entryToRemove)
-            {
-                PDEBUG("Removing entry: %s", entryToRemove);
-                kfree(entryToRemove);
-            }
-            // Remove the content from the entry buffer since moved to circular buffer
-            // No need to free the memory, since it is now owned by the circular buffer
-            dev->entry.buffptr = NULL;
-            dev->entry.size = 0;
-        }
-        else if(EOLPos < 0)
-        {
-            // No EOL char, meaning we only store in entry buffer
-            PDEBUG("Written in entry buffer");
-        }
-        else
-        {
-            // EOL char found inside the char array
-            PDEBUG("Written in entry buffer");
-            // For now ignored, but we might have to create an entry in the circular buffer with the content before EOL char
-        }
+        write_entry_into_buffer(dev);
     }
 
     *f_pos += count;
