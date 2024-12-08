@@ -82,6 +82,7 @@ int aesd_release(struct inode *inode, struct file *filp)
 // System call implementation
 // Return the content (or partial content) related to the most recent 10 write commands, in the order
 // they were received, on any read attempt.
+// f_pos is used here to handle partial read
 ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
@@ -101,9 +102,10 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         goto out;
     }
     // Once the 10 last written buffer entries were read, stop the loop
-    if((dev->stop)&&(0 == dev->bufferP.out_offs))
+    if((dev->readCounter == 10)&&(0 == dev->bufferP.out_offs))
     {
-        PDEBUG("No entrie was written yet, so do nothing");
+        PDEBUG("Last 10 entries were read, return 0 bytes to stop reading");
+        dev->readCounter = 0;
         goto out;
     }
     if (*f_pos + count > entrySize) {
@@ -119,7 +121,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     PDEBUG("Read %zu bytes from entry %u of the circular buffer",count, dev->bufferP.out_offs);
     *f_pos += count;
     retval = count;
-    dev->stop = true;
+    dev->readCounter += 1;
     // Next call, read next buffer entry
     if(lastNonZeroReadCurrentEntry)
     {
@@ -229,7 +231,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         {
             // EOL char found inside the char array
             PDEBUG("Written in entry buffer");
-            // For now ignored, but we might have to create an entry in the curcular buffer with the content before EOL char
+            // For now ignored, but we might have to create an entry in the circular buffer with the content before EOL char
         }
     }
 
