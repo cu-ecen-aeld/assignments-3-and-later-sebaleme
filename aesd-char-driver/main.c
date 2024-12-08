@@ -67,6 +67,14 @@ int aesd_open(struct inode *inode, struct file *filp)
     // In aesdchar, this is not the case, we always append the previous content in another buffer entry,
     // and once the complete circular buffer size has been written, then we overwrite the oldest content,
     // regardless of the mode used to open the device (> or >>).
+    
+    // Return the content (or partial content) related to the most recent 10 write commands, in the order
+    // they were received, on any read attempt. So if the buffer is not full, indice 0 will allways be the
+    // first to be received, so should be the first to be returned.
+    if (!dev->bufferP.full)
+    {
+        dev->bufferP.out_offs = 0;
+    }
     return 0;
 }
 
