@@ -219,6 +219,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 kfree(entryToRemove->buffptr);
             }
             // Remove the content from the entry buffer since moved to circular buffer
+            // No need to free the memory, since it is now owned by the circular buffer
             dev->entry.buffptr = NULL;
             dev->entry.size = 0;
         }

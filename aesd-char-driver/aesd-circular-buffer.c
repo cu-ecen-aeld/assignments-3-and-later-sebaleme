@@ -86,7 +86,7 @@ struct aesd_buffer_entry* aesd_circular_buffer_add_entry(struct aesd_circular_bu
     struct aesd_buffer_entry* resultP = NULL;
     // Printing %s leads to a strange behavior, because it only stops at the first \0 char, which we are not writing. So the print
     // overflows and print until a \0 is found in memory. Adding this \0 during write is not that trivial, hence not done yet.
-    PDEBUG("Writing element %s at index %d, read pointer is %d\n", add_entry->buffptr, buffer->in_offs, buffer->out_offs);
+    PDEBUG("Writing element %s at write pointer %d, read pointer is %d\n", add_entry->buffptr, buffer->in_offs, buffer->out_offs);
     // Check if the current circular buffer pointer is valid
     if(buffer->in_offs >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
     {
@@ -97,6 +97,7 @@ struct aesd_buffer_entry* aesd_circular_buffer_add_entry(struct aesd_circular_bu
     // If buffer full, make room for a new element
     if(buffer->full)
     {
+        PDEBUG("Buffer full, Replacing entries!");
         resultP = &buffer->entry[buffer->in_offs];
         buffer->out_offs = (buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     }
@@ -111,7 +112,7 @@ struct aesd_buffer_entry* aesd_circular_buffer_add_entry(struct aesd_circular_bu
     // Replace entry in the circular buffer
     buffer->entry[buffer->in_offs].buffptr = add_entry->buffptr;
     buffer->entry[buffer->in_offs].size = add_entry->size;
-
+    PDEBUG("Writen %s at write pointer %d", buffer->entry[buffer->in_offs].buffptr, buffer->in_offs);
     buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     return resultP;
 }
