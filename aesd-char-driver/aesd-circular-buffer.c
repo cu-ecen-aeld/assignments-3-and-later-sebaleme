@@ -81,9 +81,9 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 * Any necessary locking must be handled by the caller
 * Any memory referenced in @param add_entry must be allocated by and/or must have a lifetime managed by the caller.
 */
-struct aesd_buffer_entry* aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
+char* aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
-    struct aesd_buffer_entry* resultP = NULL;
+    char* resultP = NULL;
     // Printing %s leads to a strange behavior, because it only stops at the first \0 char, which we are not writing. So the print
     // overflows and print until a \0 is found in memory. Adding this \0 during write is not that trivial, hence not done yet.
     PDEBUG("Writing element %s at write pointer %d, read pointer is %d\n", add_entry->buffptr, buffer->in_offs, buffer->out_offs);
@@ -98,7 +98,7 @@ struct aesd_buffer_entry* aesd_circular_buffer_add_entry(struct aesd_circular_bu
     if(buffer->full)
     {
         PDEBUG("Buffer full, Replacing entries!");
-        resultP = &buffer->entry[buffer->in_offs];
+        resultP = buffer->entry[buffer->in_offs].buffptr;
         buffer->out_offs = (buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     }
 

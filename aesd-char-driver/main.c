@@ -181,11 +181,11 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         PDEBUG("Found EOL char at pos %d ", EOLPos);
         if(EOLPos == count-1)
         {
-            struct aesd_buffer_entry* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
+            char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
             if(entryToRemove)
             {
-                PDEBUG("Removing entry: %s", entryToRemove->buffptr);
-                kfree(entryToRemove->buffptr);
+                PDEBUG("Removing entry: %s", entryToRemove);
+                kfree(entryToRemove);
             }
             // Remove the content from the entry buffer since moved to circular buffer
             dev->entry.buffptr = NULL;
@@ -218,10 +218,11 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         PDEBUG("Found EOL char at pos %d ", EOLPos);
         if(EOLPos == count-1)
         {
-            struct aesd_buffer_entry* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
+            char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
             if(entryToRemove)
             {
-                kfree(entryToRemove->buffptr);
+                PDEBUG("Removing entry: %s", entryToRemove);
+                kfree(entryToRemove);
             }
             // Remove the content from the entry buffer since moved to circular buffer
             // No need to free the memory, since it is now owned by the circular buffer
