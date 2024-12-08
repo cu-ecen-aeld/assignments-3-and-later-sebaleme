@@ -102,7 +102,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         goto out;
     }
     // Once the 10 last written buffer entries were read, stop the loop
-    if((dev->readCounter == 10)&&(0 == dev->bufferP.out_offs))
+    if(dev->readCounter == 10)
     {
         PDEBUG("Last 10 entries were read, return 0 bytes to stop reading");
         dev->readCounter = 0;
