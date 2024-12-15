@@ -60,12 +60,18 @@ void write_entry_into_buffer(struct aesd_dev *dev)
         PDEBUG("Found EOL char at pos %d ", EOLPos);
         if(EOLPos == dev->entry.size-1)
         {
+            // TODO: Need to remember the potentially removed item, remove when add_entry returns circular entry
+            size_t sizeToRemove = dev->bufferP.entry[dev->bufferP.in_offs].size;
             const char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
             if(entryToRemove)
             {
                 PDEBUG("Removing entry: %s", entryToRemove);
+                dev->size -= sizeToRemove;
                 kfree(entryToRemove);
             }
+            // Update circular buffer size
+            dev->size += dev->entry.size;
+
             // Remove the content from the entry buffer since moved to circular buffer
             dev->entry.buffptr = NULL;
             dev->entry.size = 0;
@@ -151,12 +157,12 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         PDEBUG("Don t read outside the buffer entry, last read is only %zu", count);
     }
 
-    if (copy_to_user(buf, dev->bufferP.entry[dev->bufferP.out_offs].buffptr, count)) {
+    if (copy_to_user(buf, dev->bufferP.entry[dev->bufferP.out_offs].buffptr + f_pos, count)) {
         retval = -EFAULT;
         goto out;
     }
     PDEBUG("Read %s, %zu bytes from entry %u of the circular buffer",
-                dev->bufferP.entry[dev->bufferP.out_offs].buffptr,
+                dev->bufferP.entry[dev->bufferP.out_offs].buffptr + f_pos,
                 count, 
                 dev->bufferP.out_offs
     );
@@ -233,14 +239,39 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     retval = count;
   out:
     mutex_unlock(&dev->lock);
-    PDEBUG("%zd bytes were written",retval);
+    PDEBUG("%zd bytes were written, new total size is %lu",retval, dev->size);
     return retval;
 }
+
+/*
+ * The "extended" operations -- only seek
+ */
+loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
+{
+    PDEBUG("aesd_llseek called: offset=%lld, whence=%d\n", offset, whence);
+    struct aesd_dev *dev = filp->private_data; 
+	loff_t newpos;
+
+    if (mutex_lock_interruptible(&dev->lock))
+        return -ERESTARTSYS;
+
+    // Use default llseek method from kernel to update fpos
+    fixed_size_llseek(filp,off,whence,dev->size);
+
+    // Update read pointer according to new file offset
+    updatePointers(filp);
+
+    mutex_unlock(&dev->lock);
+
+	return newpos;
+}
+
 
 // Table mapping system calls to driver´s functions
 // The file_operations describes all the available behaviors of the driver
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
+	.llseek =   aesd_llseek,
     .read =     aesd_read,
     .write =    aesd_write,
     .open =     aesd_open,

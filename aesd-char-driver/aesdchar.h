@@ -43,7 +43,7 @@ struct aesd_dev
      struct aesd_buffer_entry entry;       /* buffer for partial data     */
      struct aesd_circular_buffer bufferP;  /* data buffer                 */
      int readCounter;                      /* End condition for read loop */
-     //unsigned long size;                   /* amount of data stored here */
+     unsigned long size;                   /* amount of data stored here */
      struct mutex lock;                    /* mutual exclusion semaphore  */
      struct cdev cdev;                     /* Char device structure       */
 };
