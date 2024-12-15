@@ -130,52 +130,37 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
     ssize_t retval = 0;
+    size_t* entryOffset;
+    struct aesd_buffer_entry* entry;
     PDEBUG("Request %zu bytes read with offset %lld",count,*f_pos);
-    bool lastNonZeroReadCurrentEntry = false;
     struct aesd_dev *dev = filp->private_data;
-    size_t entrySize = dev->bufferP.entry[dev->bufferP.out_offs].size;
-    PDEBUG("Currently handling entry %u containing %zu bytes",dev->bufferP.out_offs,entrySize);
 
     if (mutex_lock_interruptible(&dev->lock)) {
         return -ERESTARTSYS;
     }
-    if(0 == entrySize)
+
+    entry = aesd_circular_buffer_find_entry_offset_for_fpos(&(dev->bufferP), *f_pos, entryOffset);
+    if(!entry)
     {
         PDEBUG("No entrie was written yet, so do nothing");
         goto out;
     }
-    // Once the 10 last written buffer entries were read, stop the loop
-    if(dev->readCounter == 10)
-    {
-        PDEBUG("Last 10 entries were read, return 0 bytes to stop reading");
-        dev->readCounter = 0;
-        goto out;
-    }
-    if (*f_pos + count > entrySize) {
-        count = entrySize - *f_pos;
-        lastNonZeroReadCurrentEntry = true;
-        PDEBUG("Don t read outside the buffer entry, last read is only %zu", count);
-    }
 
-    if (copy_to_user(buf, dev->bufferP.entry[dev->bufferP.out_offs].buffptr + f_pos, count)) {
+    // How many bytes should we copy. Either the entry content minus offset, or just what was requested
+    retval = entry->size - *entryOffset;
+    retval = count ? count < retval : retval;
+
+    if (copy_to_user(buf, entry->buffptr + *entryOffset, count)) {
         retval = -EFAULT;
         goto out;
     }
     PDEBUG("Read %s, %zu bytes from entry %u of the circular buffer",
-                dev->bufferP.entry[dev->bufferP.out_offs].buffptr + f_pos,
-                count, 
+                entry->buffptr + *entryOffset,
+                retval, 
                 dev->bufferP.out_offs
     );
-    *f_pos += count;
-    retval = count;
-    dev->readCounter += 1;
-    // Next call, read next buffer entry
-    if(lastNonZeroReadCurrentEntry)
-    {
-        dev->bufferP.out_offs = (dev->bufferP.out_offs + 1) %  AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
-        // Reinitialize position
-        *f_pos = 0;
-    }
+    *f_pos += retval;
+
     out:
         PDEBUG("Returns %zd bytes with new offset %lld, new read pointer set to %u",retval,*f_pos, dev->bufferP.out_offs);
         mutex_unlock(&dev->lock);

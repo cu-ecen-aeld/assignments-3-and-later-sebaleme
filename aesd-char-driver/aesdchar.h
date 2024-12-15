@@ -30,6 +30,7 @@ void clean_aesd(void);
 int checkEOLChar(const char* buff, const int size);
 int aesd_open(struct inode *inode, struct file *filp);
 int aesd_release(struct inode *inode, struct file *filp);
+loff_t aesd_llseek(struct file *filp, loff_t offset, int whence);
 ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,loff_t *f_pos);
 ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,loff_t *f_pos);
 int aesd_init_module(void);
