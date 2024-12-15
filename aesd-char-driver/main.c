@@ -52,6 +52,12 @@ int checkEOLChar(const char* buff, const int size)
     return -1;
 }
 
+// Update circular buffer pointer according to fpos value
+void updatePointers(struct aesd_dev *dev, loff_t newpos)
+{
+
+}
+
 // Check if single entry should be written into circular buffer
 void write_entry_into_buffer(struct aesd_dev *dev)
 {
@@ -130,7 +136,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
     ssize_t retval = 0;
-    size_t* entryOffset;
+    size_t entryOffset;
     struct aesd_buffer_entry* entry;
     PDEBUG("Request %zu bytes read with offset %lld",count,*f_pos);
     struct aesd_dev *dev = filp->private_data;
@@ -139,7 +145,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         return -ERESTARTSYS;
     }
 
-    entry = aesd_circular_buffer_find_entry_offset_for_fpos(&(dev->bufferP), *f_pos, entryOffset);
+    entry = aesd_circular_buffer_find_entry_offset_for_fpos(&(dev->bufferP), *f_pos, &entryOffset);
     if(!entry)
     {
         PDEBUG("No entrie was written yet, so do nothing");
@@ -147,15 +153,15 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     }
 
     // How many bytes should we copy. Either the entry content minus offset, or just what was requested
-    retval = entry->size - *entryOffset;
+    retval = entry->size - entryOffset;
     retval = count ? count < retval : retval;
 
-    if (copy_to_user(buf, entry->buffptr + *entryOffset, count)) {
+    if (copy_to_user(buf, entry->buffptr + entryOffset, retval)) {
         retval = -EFAULT;
         goto out;
     }
     PDEBUG("Read %s, %zu bytes from entry %u of the circular buffer",
-                entry->buffptr + *entryOffset,
+                entry->buffptr + entryOffset,
                 retval, 
                 dev->bufferP.out_offs
     );
@@ -231,24 +237,23 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 /*
  * The "extended" operations -- only seek
  */
-loff_t aesd_llseek(struct file *filp, loff_t off, int whence)
+loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 {
     PDEBUG("aesd_llseek called: offset=%lld, whence=%d\n", offset, whence);
     struct aesd_dev *dev = filp->private_data; 
-	loff_t newpos;
 
     if (mutex_lock_interruptible(&dev->lock))
         return -ERESTARTSYS;
 
     // Use default llseek method from kernel to update fpos
-    fixed_size_llseek(filp,off,whence,dev->size);
+    filp->f_pos = fixed_size_llseek(filp,offset,whence,dev->size);
 
     // Update read pointer according to new file offset
-    updatePointers(filp);
+    updatePointers(dev, filp->f_pos);
 
     mutex_unlock(&dev->lock);
 
-	return newpos;
+	return filp->f_pos;
 }
 
 
