@@ -50,6 +50,13 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
         entry_id = (entry_id + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
         offset = char_offset - accumulated_length;
 
+        // End condition. Occurs when existing entries were read and next entries are empty
+        PDEBUG("entry_id %d, buffer->entry[entry_id].size %ld, and offset is %d\n",entry_id, buffer->entry[entry_id].size, offset);
+        if((offset == 0)&&(buffer->entry[entry_id].size == 0))
+        {
+            return NULL;
+        }
+
         // If offset is negative, it means we went too far, and the remaining offset is targeting a character within the
         // current entry_id. So we add back the string size to the offset. Entering this if means we will exit the loop
         // in the next iteration.

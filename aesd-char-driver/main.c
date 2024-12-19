@@ -154,13 +154,13 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 
     // How many bytes should we copy. Either the entry content minus offset, or just what was requested
     retval = entry->size - entryOffset;
-    retval = count ? count < retval : retval;
+    retval = count > (size_t)retval? retval: count;
 
     if (copy_to_user(buf, entry->buffptr + entryOffset, retval)) {
         retval = -EFAULT;
         goto out;
     }
-    PDEBUG("Read %s, %zu bytes from entry %u of the circular buffer",
+    PDEBUG("Read %s, %zd bytes from entry %u of the circular buffer",
                 entry->buffptr + entryOffset,
                 retval, 
                 dev->bufferP.out_offs
