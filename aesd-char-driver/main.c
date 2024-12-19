@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
+#include "aesd_ioctl.h"
 
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
@@ -52,10 +53,11 @@ int checkEOLChar(const char* buff, const int size)
     return -1;
 }
 
-// Update circular buffer pointer according to fpos value
-void updatePointers(struct aesd_dev *dev, loff_t newpos)
+// Update circular buffer offset and read/write pointers
+int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t write_cmd_offset)
 {
-
+    int retval = 0;
+    return retval;
 }
 
 // Check if single entry should be written into circular buffer
@@ -237,12 +239,11 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 // System call implementation
 // The "extended" operations -- only seek
 // llseek sets the f_pos value to the requested position
-// Requested position defined by offset and whence the reference (begin 0, current 1  or end 2 of file)
+// Requested position defined by offset and whence the reference (begin 0, current 1 or end 2 of file)
 loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 {
     PDEBUG("aesd_llseek called: offset=%lld, whence=%d\n", offset, whence);
     struct aesd_dev *dev = filp->private_data; 
-    PDEBUG("read pointer %u, write pointer %u",dev->bufferP.out_offs, dev->bufferP.in_offs);
 
     if (mutex_lock_interruptible(&dev->lock))
         return -ERESTARTSYS;
@@ -250,12 +251,39 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
     // Use default llseek method from kernel to update fpos
     filp->f_pos = fixed_size_llseek(filp,offset,whence,dev->size);
 
-    // Update read pointer according to new file offset
-    updatePointers(dev, filp->f_pos);
-    PDEBUG("read pointer %u, write pointer %u",dev->bufferP.out_offs, dev->bufferP.in_offs);
     mutex_unlock(&dev->lock);
 
 	return filp->f_pos;
+}
+
+
+// The ioctl() implementation
+long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+    long retval = 0;
+
+    /*
+     * extract the type and number bitfields, and don't decode
+     * wrong cmds: return ENOTTY (inappropriate ioctl) before access_ok()
+     */
+    if (_IOC_TYPE(cmd) != AESD_IOC_MAGIC) return -ENOTTY;
+    if (_IOC_NR(cmd) > AESDCHAR_IOC_MAXNR) return -ENOTTY;
+
+    switch(cmd) {
+
+      case AESDCHAR_IOCSEEKTO:
+        struct aesd_seekto seekto;
+        if(copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)) != 0) {
+            retval = EFAULT;
+        } else {
+            retval = aesd_adjust_file_offset(filp, seekto.write_cmd, seekto.write_cmd_offset);
+        }
+        break;
+
+      default:  /* redundant, as cmd was checked against MAXNR */
+        return -ENOTTY;
+    }
+    return retval;
 }
 
 
@@ -266,6 +294,7 @@ struct file_operations aesd_fops = {
 	.llseek =   aesd_llseek,
     .read =     aesd_read,
     .write =    aesd_write,
+	.unlocked_ioctl = aesd_ioctl,
     .open =     aesd_open,
     .release =  aesd_release,
 };
