@@ -62,8 +62,9 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
         // in the next iteration.
         if(offset < 0)
         {
-            PDEBUG("entry_id %d, buffer->entry[entry_id].size %ld, and offset is %d\n",entry_id, buffer->entry[entry_id].size, offset);
+            entry_id = (entry_id - 1 +AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
             offset += buffer->entry[entry_id].size;
+            PDEBUG("entry_id %d, buffer->entry[entry_id].size %ld, and offset is %d\n",entry_id, buffer->entry[entry_id].size, offset);
         }
 
         // The char_offset is higher than the total number of written elements in the circular buffer.

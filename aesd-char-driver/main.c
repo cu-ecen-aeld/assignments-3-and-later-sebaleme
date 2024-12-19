@@ -138,8 +138,8 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     ssize_t retval = 0;
     size_t entryOffset;
     struct aesd_buffer_entry* entry;
-    PDEBUG("Request %zu bytes read with offset %lld",count,*f_pos);
     struct aesd_dev *dev = filp->private_data;
+    PDEBUG("Request %zu bytes read with offset %lld for entry %u",count,*f_pos, dev->bufferP.out_offs);
 
     if (mutex_lock_interruptible(&dev->lock)) {
         return -ERESTARTSYS;
@@ -234,13 +234,15 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     return retval;
 }
 
-/*
- * The "extended" operations -- only seek
- */
+// System call implementation
+// The "extended" operations -- only seek
+// llseek sets the f_pos value to the requested position
+// Requested position defined by offset and whence the reference (begin 0, current 1  or end 2 of file)
 loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 {
     PDEBUG("aesd_llseek called: offset=%lld, whence=%d\n", offset, whence);
     struct aesd_dev *dev = filp->private_data; 
+    PDEBUG("read pointer %u, write pointer %u",dev->bufferP.out_offs, dev->bufferP.in_offs);
 
     if (mutex_lock_interruptible(&dev->lock))
         return -ERESTARTSYS;
@@ -250,7 +252,7 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 
     // Update read pointer according to new file offset
     updatePointers(dev, filp->f_pos);
-
+    PDEBUG("read pointer %u, write pointer %u",dev->bufferP.out_offs, dev->bufferP.in_offs);
     mutex_unlock(&dev->lock);
 
 	return filp->f_pos;

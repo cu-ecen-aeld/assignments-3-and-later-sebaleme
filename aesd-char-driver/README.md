@@ -28,3 +28,8 @@ More here: https://www.geeksforgeeks.org/format-specifiers-in-c/
 
 Debug messages can be read with dmesg application: 
  dmesg | tail -n 20
+Using "dmesg -c" clear the kernel logging buffer
+
+DD Util:
+ - bs option for dd is mandatory, without that it tries to read blocks. Using 1 means it read one byte at a time
+ - If aesdchar is empty, dd will return:  dd: /dev/aesdchar: cannot skip: Invalid argument
