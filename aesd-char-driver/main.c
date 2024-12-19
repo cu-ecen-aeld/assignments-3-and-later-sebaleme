@@ -53,10 +53,41 @@ int checkEOLChar(const char* buff, const int size)
     return -1;
 }
 
-// Update circular buffer offset and read/write pointers
+// Ajust file offset (f_pos) parameter based on the location specified by
+// @param write_cmd the zero referenced command to locate
+// @param write_cmd_offset the zero referenced offset into the command
+// @return 0 if successful, negative if error occured
 int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t write_cmd_offset)
 {
     int retval = 0;
+    int i;
+    size_t size_offset = 0;
+
+    if(write_cmd > AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED){
+        PDEBUG("Write command is outside the range of the circular buffer: %u ", write_cmd);
+        return -EINVAL;
+    }
+
+    struct aesd_dev *dev = filp->private_data;
+    if (mutex_lock_interruptible(&dev->lock)) {
+        return -ERESTARTSYS;
+    }
+
+    if(write_cmd_offset > dev->bufferP.entry[write_cmd].size){
+        PDEBUG("Write command offset is outside of the circular buffer entry: %u ", write_cmd_offset);
+        return -EINVAL;
+    }
+
+    // In this section, we compute the number of bytes used by the write_cmd previous entries
+    for (i=0; i<write_cmd; i++)
+    {
+        size_offset += dev->bufferP.entry[i].size;
+    }
+
+    // Set f_pos to the requested position
+    filp->f_pos = size_offset + write_cmd_offset;
+
+    mutex_unlock(&dev->lock);
     return retval;
 }
 
@@ -261,7 +292,7 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     long retval = 0;
-
+    PDEBUG("aesd_ioctl called with command : %u ", cmd);
     /*
      * extract the type and number bitfields, and don't decode
      * wrong cmds: return ENOTTY (inappropriate ioctl) before access_ok()
