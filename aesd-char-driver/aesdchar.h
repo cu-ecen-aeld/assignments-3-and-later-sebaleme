@@ -29,6 +29,7 @@
 void clean_aesd(void);
 int checkEOLChar(const char* buff, const int size);
 int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t write_cmd_offset);
+int run_ioctl_command(const char *p, struct file *filp);
 int aesd_open(struct inode *inode, struct file *filp);
 int aesd_release(struct inode *inode, struct file *filp);
 loff_t aesd_llseek(struct file *filp, loff_t offset, int whence);

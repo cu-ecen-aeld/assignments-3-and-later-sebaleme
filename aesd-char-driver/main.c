@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/slab.h>         // kmalloc()
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
@@ -62,13 +63,14 @@ int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t writ
     int retval = 0;
     int i;
     size_t size_offset = 0;
+    struct aesd_dev *dev;
 
     if(write_cmd > AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED){
         PDEBUG("Write command is outside the range of the circular buffer: %u ", write_cmd);
         return -EINVAL;
     }
 
-    struct aesd_dev *dev = filp->private_data;
+    dev = filp->private_data;
     if (mutex_lock_interruptible(&dev->lock)) {
         return -ERESTARTSYS;
     }
@@ -94,45 +96,79 @@ int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t writ
 // Check if single entry should be written into circular buffer
 void write_entry_into_buffer(struct aesd_dev *dev)
 {
-        // Now check if current write has EOL character
-        int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
-        PDEBUG("Found EOL char at pos %d ", EOLPos);
-        if(EOLPos == dev->entry.size-1)
+    // Now check if current write has EOL character
+    int EOLPos = checkEOLChar(dev->entry.buffptr, dev->entry.size);
+    PDEBUG("Found EOL char at pos %d ", EOLPos);
+    if(EOLPos == dev->entry.size-1)
+    {
+        // TODO: Need to remember the potentially removed item, remove when add_entry returns circular entry
+        size_t sizeToRemove = dev->bufferP.entry[dev->bufferP.in_offs].size;
+        const char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
+        if(entryToRemove)
         {
-            // TODO: Need to remember the potentially removed item, remove when add_entry returns circular entry
-            size_t sizeToRemove = dev->bufferP.entry[dev->bufferP.in_offs].size;
-            const char* entryToRemove = aesd_circular_buffer_add_entry(&(dev->bufferP), &(dev->entry));
-            if(entryToRemove)
-            {
-                PDEBUG("Removing entry: %s", entryToRemove);
-                dev->size -= sizeToRemove;
-                kfree(entryToRemove);
-            }
-            // Update circular buffer size
-            dev->size += dev->entry.size;
+            PDEBUG("Removing entry: %s", entryToRemove);
+            dev->size -= sizeToRemove;
+            kfree(entryToRemove);
+        }
+        // Update circular buffer size
+        dev->size += dev->entry.size;
 
-            // Remove the content from the entry buffer since moved to circular buffer
-            dev->entry.buffptr = NULL;
-            dev->entry.size = 0;
-        }
-        else if(EOLPos < 0)
-        {
-            // No EOL char, meaning we only store in entry buffer
-            PDEBUG("Written in entry buffer");
-        }
-        else
-        {
-            // EOL char found inside the char array
-            PDEBUG("Written in entry buffer");
-        }
+        // Remove the content from the entry buffer since moved to circular buffer
+        dev->entry.buffptr = NULL;
+        dev->entry.size = 0;
+    }
+    else if(EOLPos < 0)
+    {
+        // No EOL char, meaning we only store in entry buffer
+        PDEBUG("Written in entry buffer");
+    }
+    else
+    {
+        // EOL char found inside the char array
+        PDEBUG("Written in entry buffer");
+    }
+}
+
+// Prepare and call ioctl function command in char* 
+int run_ioctl_command(const char *p, struct file *filp)
+{
+    int ret;
+    char *endptr;
+    unsigned int *x_command, *y_command;
+
+    // Now we are looking for X (command) and Y (offset)
+    // Parse the first number (X), look for the comma
+    endptr = strchr(p, ',');
+    if (!endptr) {
+        return -EFAULT;
+    }
+    // Temporarily terminate the string at the comma, retore after extracting X value
+    *endptr = '\0';
+    ret = kstrtouint(p, 10, x_command);
+    *endptr = ',';
+    if (ret) {
+        PDEBUG("Could not convert X value to an unsigned int");
+        return -EFAULT;
+    }
+
+    // Parse the second number (Y)
+    p = endptr + 1; // Move past the comma
+    ret = kstrtouint(p, 10, y_command);
+    if (ret) {
+        PDEBUG("Could not convert Y value to an unsigned int");
+        return -EFAULT;
+    }
+
+    PDEBUG("Found X = %u and Y = %u", *x_command, *y_command);
+    aesd_ioctl(filp, *x_command, *y_command);
+    return 0;
 }
 
 // System call implementation
 int aesd_open(struct inode *inode, struct file *filp)
 {
-    PDEBUG("open");
-
     struct aesd_dev *dev; /* device information */
+    PDEBUG("open");
     dev = container_of(inode->i_cdev, struct aesd_dev, cdev);
     filp->private_data = dev; /* for other methods */
 
@@ -212,12 +248,31 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
     ssize_t retval = -ENOMEM;
+    struct aesd_dev *dev = filp->private_data;
+    const char *prefix = "AESDCHAR_IOCSEEKTO:";
+    char *p;
+    int newSize;
     PDEBUG("Request write %zu bytes with offset %lld",count,*f_pos);
-    struct aesd_dev *dev = filp->private_data; 
 
     if (mutex_lock_interruptible(&dev->lock))
         return -ERESTARTSYS;
-    
+
+    // Allocate more than required so we can reuse the heap memory for partial write case later
+    newSize = count+dev->entry.size;
+    char* newString = kmalloc(newSize,GFP_KERNEL);
+
+    // Check if received buffer contains an IOCTL request
+    if (copy_from_user(newString, buf, count)) {
+        retval = -EINVAL;
+        goto out;
+    }
+    if (strstr(newString, prefix) != NULL) {
+        PDEBUG("The request is a IOCTL command to set read pointer at element ");
+        // Move past the prefix
+        p = newString + strlen(prefix);
+        run_ioctl_command(p, filp);
+    }
+
     // We have 4 uses cases here.
     // Cases with empty entry buffer:
     // - New write terminated by an EOL charater: write in entry buffer, copy in circular buffer and free entry buffer
@@ -231,8 +286,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     if(dev->entry.buffptr)
     {
         PDEBUG("Proceeding a partial write");
-        int newSize = count+dev->entry.size;
-        char* newString = kmalloc(newSize,GFP_KERNEL);
         memcpy(newString, dev->entry.buffptr, dev->entry.size);
         // Here we do pointer arithmetic to concatenate previous and new content
         if (copy_from_user(newString + dev->entry.size, buf, count)) {
@@ -273,8 +326,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 // Requested position defined by offset and whence the reference (begin 0, current 1 or end 2 of file)
 loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 {
+    struct aesd_dev *dev = filp->private_data;
     PDEBUG("aesd_llseek called: offset=%lld, whence=%d\n", offset, whence);
-    struct aesd_dev *dev = filp->private_data; 
 
     if (mutex_lock_interruptible(&dev->lock))
         return -ERESTARTSYS;
@@ -292,6 +345,7 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     long retval = 0;
+    struct aesd_seekto seekto;
     PDEBUG("aesd_ioctl called with command : %u ", cmd);
     /*
      * extract the type and number bitfields, and don't decode
@@ -303,7 +357,6 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     switch(cmd) {
 
       case AESDCHAR_IOCSEEKTO:
-        struct aesd_seekto seekto;
         if(copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)) != 0) {
             retval = EFAULT;
         } else {
