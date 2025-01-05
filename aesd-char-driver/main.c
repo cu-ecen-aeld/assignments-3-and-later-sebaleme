@@ -132,6 +132,7 @@ void write_entry_into_buffer(struct aesd_dev *dev)
 // Prepare and call ioctl function command in char* 
 int run_ioctl_command(const char *p, struct file *filp)
 {
+    PDEBUG("Entering ioctl, working with %s", p);
     int ret;
     char *endptr;
     unsigned int *x_command, *y_command;
@@ -267,7 +268,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         goto out;
     }
     if (strstr(newString, prefix) != NULL) {
-        PDEBUG("The request is a IOCTL command to set read pointer at element ");
+        PDEBUG("The request is a IOCTL command to set the read pointer");
         // Move past the prefix
         p = newString + strlen(prefix);
         run_ioctl_command(p, filp);
@@ -346,7 +347,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     long retval = 0;
     struct aesd_seekto seekto;
-    PDEBUG("aesd_ioctl called with command : %u ", cmd);
+    PDEBUG("aesd_ioctl called with command : %u, only valid command is : %lu", cmd, AESDCHAR_IOCSEEKTO);
     /*
      * extract the type and number bitfields, and don't decode
      * wrong cmds: return ENOTTY (inappropriate ioctl) before access_ok()
