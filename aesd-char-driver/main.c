@@ -72,10 +72,6 @@ int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t writ
     }
 
     dev = filp->private_data;
-    if (mutex_lock_interruptible(&dev->lock)) {
-        return -ERESTARTSYS;
-    }
-
     if(write_cmd_offset > dev->bufferP.entry[write_cmd].size){
         PDEBUG("Write command offset is outside of the circular buffer entry: %u ", write_cmd_offset);
         return -EINVAL;
@@ -90,7 +86,6 @@ int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t writ
     // Set f_pos to the requested position
     filp->f_pos = size_offset + write_cmd_offset;
     PDEBUG("File offset set to: %lld", filp->f_pos);
-    mutex_unlock(&dev->lock);
     return retval;
 }
 
@@ -352,6 +347,7 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 // Beware of not confusing the ioctl command, cmd, and the SEEKTO command, which is part of arg
 // aesd_ioctl can only be called from user space, because copy_from_user will fail if the arg pointer
 // is pointing to kernel memory
+// Currently, this method is not using any locking mechanism
 long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     long retval = 0;
