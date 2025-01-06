@@ -136,3 +136,139 @@ Oct  8 18:16:45 FE-C-013E3 aesdsocket: Timestamp thread: wrote 28 bytes into tar
 Oct  8 18:16:50 FE-C-013E3 aesdsocket: Received interrupt signal, ending connection
 Oct  8 18:16:55 FE-C-013E3 aesdsocket: Timestamp thread: wrote 28 bytes into target file
 Oct  8 18:16:55 FE-C-013E3 aesdsocket: Exiting the socket server program, 0 thread still active
+
+# QEMU
+Check cat /var/log/messages for seeing socket server outputs
+
+Jan  6 21:53:22 buildroot kern.alert kernel: Hello, world sebaleme
+Jan  6 21:53:22 buildroot user.info aesdsocket: Entering server socket program
+Jan  6 21:53:22 buildroot daemon.info : starting pid 171, tty '/dev/console': '/sbin/getty -L  console 0 vt100 '
+Jan  6 21:53:22 buildroot user.info aesdsocket: Socket created and binded, with file descriptor 4
+Jan  6 21:53:22 buildroot user.info aesdsocket: Listening to connections on 4
+Jan  6 21:53:27 buildroot auth.info login[171]: root login on 'console'
+Jan  6 21:53:35 buildroot user.info aesdsocket: New thread started, now 1 ongoing
+Jan  6 21:53:35 buildroot user.info aesdsocket: Accepted connection from 10.0.2.2:39134
+Jan  6 21:53:35 buildroot user.info aesdsocket: Received 8 bytes, wrote 8 bytes into target file
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: open
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: aesd_ioctl called with command : 21505, only valid command is : 3221755393
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: Request write 8 bytes with offset 0
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: Starting a new write session
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: Found EOL char at pos 7 
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: Writing element swrite1
+Jan  6 21:53:35 buildroot kern.debug kernel: ^H�a^B����^H�a^B����^P^D3^H���� at write pointer 0, read pointer is 0
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: Writen swrite1
+Jan  6 21:53:35 buildroot kern.debug kernel: ^H�a^B����^H�a^B����^P^D3^H���� at write pointer 0
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: 8 bytes were written, new total size is 8
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: release
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: open
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: aesd_ioctl called with command : 21505, only valid command is : 3221755393
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: Request 50000 bytes read with offset 0 for entry 0
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: offset is 0, accumulated_length is 0, and string is swrite1
+Jan  6 21:53:35 buildroot kern.debug kernel: ^H�a^B����^H�a^B����^P^D3^H����
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: Read swrite1
+Jan  6 21:53:35 buildroot kern.debug kernel: ^H�a^B����^H�a^B����^P^D3^H����, 8 bytes from entry 0 of the circular buffer
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: Returns 8 bytes with new offset 8, new read pointer set to 0
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: Request 49992 bytes read with offset 8 for entry 0
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: entry_id 1, buffer->entry[entry_id].size 0, and offset is 0
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: No entrie was written yet, so do nothing
+Jan  6 21:53:35 buildroot kern.debug kernel: aesdchar: Returns 0 bytes with new offset 8, new read pointer set to 0
+Jan  6 21:53:35 buildroot user.info aesdsocket: Read 8 bytes in local file, sent 8 bytes as acknowledgement, ||swrite1 ||
+Jan  6 21:53:36 buildroot user.info aesdsocket: Thread 5 finished, received a total of 8 data from the client after 0.010000 seconds
+Jan  6 21:53:36 buildroot user.info aesdsocket: New thread started, now 2 ongoing
+Jan  6 21:53:36 buildroot user.info aesdsocket: Accepted connection from 10.0.2.2:41694
+Jan  6 21:53:36 buildroot user.info aesdsocket: Received 8 bytes, wrote 8 bytes into target file
+Jan  6 21:53:36 buildroot user.info aesdsocket: Read 16 bytes in local file, sent 16 bytes as acknowledgement, ||swrite1 swrite2 ||
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: release
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: open
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: aesd_ioctl called with command : 21505, only valid command is : 3221755393
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Request write 8 bytes with offset 0
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Starting a new write session
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Found EOL char at pos 7 
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Writing element swrite2
+Jan  6 21:53:36 buildroot kern.debug kernel:  at write pointer 1, read pointer is 0
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Writen swrite2
+Jan  6 21:53:36 buildroot kern.debug kernel:  at write pointer 1
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: 8 bytes were written, new total size is 16
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: release
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: open
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: aesd_ioctl called with command : 21505, only valid command is : 3221755393
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Request 50000 bytes read with offset 0 for entry 0
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: offset is 0, accumulated_length is 0, and string is swrite1
+Jan  6 21:53:36 buildroot kern.debug kernel: ^H�a^B����^H�a^B����^P^D3^H����
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Read swrite1
+Jan  6 21:53:36 buildroot kern.debug kernel: ^H�a^B����^H�a^B����^P^D3^H����, 8 bytes from entry 0 of the circular buffer
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Returns 8 bytes with new offset 8, new read pointer set to 0
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Request 49992 bytes read with offset 8 for entry 0
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: entry_id 1, buffer->entry[entry_id].size 8, and offset is 0
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: offset is 0, accumulated_length is 8, and string is swrite2
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Read swrite2
+Jan  6 21:53:36 buildroot kern.debug kernel: , 8 bytes from entry 0 of the circular buffer
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Returns 8 bytes with new offset 16, new read pointer set to 0
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Request 49984 bytes read with offset 16 for entry 0
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: entry_id 1, buffer->entry[entry_id].size 8, and offset is 8
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: entry_id 2, buffer->entry[entry_id].size 0, and offset is 0
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: No entrie was written yet, so do nothing
+Jan  6 21:53:36 buildroot kern.debug kernel: aesdchar: Returns 0 bytes with new offset 16, new read pointer set to 0
+Jan  6 21:53:36 buildroot user.info aesdsocket: Thread 5 closed
+Jan  6 21:53:37 buildroot user.info aesdsocket: Thread 6 finished, received a total of 8 data from the client after 0.000000 seconds
+Jan  6 21:53:37 buildroot user.info aesdsocket: Thread 6 closed
+Jan  6 21:53:37 buildroot user.info aesdsocket: New thread started, now 1 ongoing
+Jan  6 21:53:37 buildroot user.info aesdsocket: Accepted connection from 10.0.2.2:43230
+Jan  6 21:53:37 buildroot user.info aesdsocket: Received 8 bytes, wrote 8 bytes into target file
+Jan  6 21:53:37 buildroot user.info aesdsocket: Read 24 bytes in local file, sent 24 bytes as acknowledgement, ||swrite1 swrite2 swrite3 ||
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: release
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: open
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: aesd_ioctl called with command : 21505, only valid command is : 3221755393
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Request write 8 bytes with offset 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Starting a new write session
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Found EOL char at pos 7 
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Writing element swrite3
+Jan  6 21:53:37 buildroot kern.debug kernel:  at write pointer 2, read pointer is 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Writen swrite3
+Jan  6 21:53:37 buildroot kern.debug kernel:  at write pointer 2
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: 8 bytes were written, new total size is 24
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: release
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: open
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: aesd_ioctl called with command : 21505, only valid command is : 3221755393
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Request 50000 bytes read with offset 0 for entry 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: offset is 0, accumulated_length is 0, and string is swrite1
+Jan  6 21:53:37 buildroot kern.debug kernel: ^H�a^B����^H�a^B����^P^D3^H����
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Read swrite1
+Jan  6 21:53:37 buildroot kern.debug kernel: ^H�a^B����^H�a^B����^P^D3^H����, 8 bytes from entry 0 of the circular buffer
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Returns 8 bytes with new offset 8, new read pointer set to 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Request 49992 bytes read with offset 8 for entry 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: entry_id 1, buffer->entry[entry_id].size 8, and offset is 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: offset is 0, accumulated_length is 8, and string is swrite2
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Read swrite2
+Jan  6 21:53:37 buildroot kern.debug kernel: , 8 bytes from entry 0 of the circular buffer
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Returns 8 bytes with new offset 16, new read pointer set to 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Request 49984 bytes read with offset 16 for entry 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: entry_id 1, buffer->entry[entry_id].size 8, and offset is 8
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: entry_id 2, buffer->entry[entry_id].size 8, and offset is 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: offset is 0, accumulated_length is 16, and string is swrite3
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Read swrite3
+Jan  6 21:53:37 buildroot kern.debug kernel: , 8 bytes from entry 0 of the circular buffer
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Returns 8 bytes with new offset 24, new read pointer set to 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Request 49976 bytes read with offset 24 for entry 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: entry_id 1, buffer->entry[entry_id].size 8, and offset is 16
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: entry_id 2, buffer->entry[entry_id].size 8, and offset is 8
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: entry_id 3, buffer->entry[entry_id].size 0, and offset is 0
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: No entrie was written yet, so do nothing
+Jan  6 21:53:37 buildroot kern.debug kernel: aesdchar: Returns 0 bytes with new offset 24, new read pointer set to 0
+Jan  6 21:53:38 buildroot user.info aesdsocket: Thread 5 finished, received a total of 8 data from the client after 0.000000 seconds
+Jan  6 21:53:38 buildroot user.info aesdsocket: New thread started, now 2 ongoing
+Jan  6 21:53:38 buildroot user.info aesdsocket: Accepted connection from 10.0.2.2:45790
+Jan  6 21:53:38 buildroot user.info aesdsocket: The request is a IOCTL command to set the read pointer
+Jan  6 21:53:38 buildroot user.info aesdsocket: Entering ioctl, working with 0,2
+Jan  6 21:53:38 buildroot user.info aesdsocket: Found X = 0 and Y = 2
+Jan  6 21:53:38 buildroot user.info aesdsocket: Read 0 bytes in local file, sent 0 bytes as acknowledgement, ||||
+Jan  6 21:53:38 buildroot kern.debug kernel: aesdchar: release
+Jan  6 21:53:38 buildroot kern.debug kernel: aesdchar: open
+Jan  6 21:53:38 buildroot kern.debug kernel: aesdchar: aesd_ioctl called with command : 21505, only valid command is : 3221755393
+Jan  6 21:53:38 buildroot kern.debug kernel: aesdchar: aesd_ioctl called with command : 3221755393, only valid command is : 3221755393
+Jan  6 21:53:38 buildroot kern.debug kernel: aesdchar: Adjusting file offset with: 0 and offset 2
+Jan  6 21:53:38 buildroot kern.debug kernel: aesdchar: File offset set to: 2
+Jan  6 21:53:38 buildroot user.info aesdsocket: Thread 5 closed
+Jan  6 21:53:39 buildroot user.info aesdsocket: Thread 6 finished, received a total of 23 data from the client after 0.000000 seconds
+Jan  6 21:53:39 buildroot user.info aesdsocket: Thread 6 closed
+# cat /var/log/messages

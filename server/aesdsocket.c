@@ -102,6 +102,7 @@ void* threadfunc(void* thread_param)
     int fd;
     char *p;
     const char *prefix = "AESDCHAR_IOCSEEKTO:";
+    bool is_ioctl = false;
     clock_t start = clock();
 
     // Cast input param back to a useful type
@@ -141,12 +142,16 @@ void* threadfunc(void* thread_param)
         // Store the last received packet in target file
         len += bytes_num;
         get_mutex(data->file_mutex);
+        // Open file and generate file descriptor
+        // We open the file only once, and keep the file descriptor for the read action
+        // If the file was written (is_ioctl = false), we reset the offset pointer
         FILE *file = fopen(FILEPATH, "a");
         if (file == NULL)
         {
             syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
             break;
         }
+        fd = fileno(file);
 
         // If received string is an IOCTL, special handling. In particular, do not close file
         // between ioctl request and read action
@@ -155,44 +160,40 @@ void* threadfunc(void* thread_param)
 
             // Move past the prefix and run the ioctl command
             p = buffer + strlen(prefix);
-            fd = fileno(file);
             run_ioctl_command(p, fd);
-
-            // Then read the content, close the file and release the mutex
-            char sendBuffer[MAX_BUFFER_SIZE] = {0};
-            int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, file);
-            fclose(file);
-            release_mutex(data->file_mutex);
-            // Send the full received content as acknowledgement
-            int bytes_sent = send(data->fd, sendBuffer, read_bytes, 0);
-            syslog(LOG_INFO, "Read %d bytes in local file, sent %d bytes as acknowledgement, ||%s||\n", read_bytes, bytes_sent, sendBuffer);
+            is_ioctl = true;
         }
         else
         {
             int written_bytes = fwrite(buffer, sizeof(char), bytes_num, file);
-            fclose(file);
-            release_mutex(data->file_mutex);
             syslog(LOG_INFO, "Received %d bytes, wrote %d bytes into target file\n", bytes_num, written_bytes);
+        }
 
-            // If new line character, this is the last package and send the answer
-            if(memchr(buffer, '\n', bytes_num) != NULL) {
-                // Prepare sendBuffer, containing the answer to the client
-                char sendBuffer[MAX_BUFFER_SIZE] = {0};
-                get_mutex(data->file_mutex);
-                FILE *fileRead = fopen(FILEPATH, "r");
-                int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, file);
-                fclose(fileRead);
-                release_mutex(data->file_mutex);
-                // Send the full received content as acknowledgement
-                int bytes_sent = send(data->fd, sendBuffer, read_bytes, 0);
-                syslog(LOG_INFO, "Read %d bytes in local file, sent %d bytes as acknowledgement, ||%s||\n", read_bytes, bytes_sent, sendBuffer);
-                if (bytes_sent == -1)
+        // If new line character, this is the last package and send the answer
+        if(memchr(buffer, '\n', bytes_num) != NULL) {
+            // Reset file position if file was writen
+            if (!is_ioctl)
+            {
+                if (lseek(fd, 0, SEEK_SET) == -1)
                 {
-                    syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
+                    syslog(LOG_ERR, "Value of errno attempting to");
                     break;
                 }
             }
+            // Prepare sendBuffer, containing the answer to the client
+            char sendBuffer[MAX_BUFFER_SIZE] = {0};
+            int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, file);
+            release_mutex(data->file_mutex);
+            // Send the full received content as acknowledgement
+            int bytes_sent = send(data->fd, sendBuffer, read_bytes, 0);
+            syslog(LOG_INFO, "Read %d bytes in local file, sent %d bytes as acknowledgement, ||%s||\n", read_bytes, bytes_sent, sendBuffer);
+            if (bytes_sent == -1)
+            {
+                syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
+                break;
+            }
         }
+
     }
     
     clock_t end = clock();
