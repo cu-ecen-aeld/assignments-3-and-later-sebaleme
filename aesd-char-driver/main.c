@@ -375,7 +375,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
             PDEBUG("Failed to copy from user");
             retval = EFAULT;
         } else {
-            retval = aesd_adjust_file_offset(filp, seekto.write_cmd, seekto.write_cmd_offset);
+            retval = aesd_adjust_file_offset(filp, &(filp->f_pos), seekto.write_cmd, seekto.write_cmd_offset);
         }
         break;
 
