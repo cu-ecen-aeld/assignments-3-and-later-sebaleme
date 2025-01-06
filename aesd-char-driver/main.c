@@ -55,10 +55,11 @@ int checkEOLChar(const char* buff, const int size)
 }
 
 // Ajust file offset (f_pos) parameter based on the location specified by
+// @param f_pos file offset pointer to be modified
 // @param write_cmd the zero referenced command to locate
 // @param write_cmd_offset the zero referenced offset into the command
 // @return 0 if successful, negative if error occured
-int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t write_cmd_offset)
+int aesd_adjust_file_offset(struct file *filp, loff_t *f_pos, uint32_t write_cmd, uint32_t write_cmd_offset)
 {
     PDEBUG("Adjusting file offset with: %u and offset %u", write_cmd, write_cmd_offset);
     int retval = 0;
@@ -84,8 +85,8 @@ int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t writ
     }
 
     // Set f_pos to the requested position
-    filp->f_pos = size_offset + write_cmd_offset;
-    PDEBUG("File offset set to: %lld", filp->f_pos);
+    *f_pos = size_offset + write_cmd_offset;
+    PDEBUG("File offset set to: %lld", *f_pos);
     return retval;
 }
 
@@ -126,7 +127,7 @@ void write_entry_into_buffer(struct aesd_dev *dev)
 }
 
 // Prepare and call ioctl function command in char* 
-int run_ioctl_command(const char *p, struct file *filp)
+int run_ioctl_command(const char *p, struct file *filp, loff_t *f_pos)
 {
     PDEBUG("Entering ioctl, working with %s", p);
     int ret;
@@ -159,7 +160,7 @@ int run_ioctl_command(const char *p, struct file *filp)
     PDEBUG("Found X = %u and Y = %u", seekto.write_cmd, seekto.write_cmd_offset);
 
     // Here we bypass the ioctl function, and directly update the f_pos pointer.
-    return aesd_adjust_file_offset(filp, seekto.write_cmd, seekto.write_cmd_offset);
+    return aesd_adjust_file_offset(filp, f_pos, seekto.write_cmd, seekto.write_cmd_offset);
 }
 
 // System call implementation
@@ -271,7 +272,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
         // Move past the prefix
         p = newString + strlen(prefix);
-        if(run_ioctl_command(p, filp))
+        if(run_ioctl_command(p, filp, f_pos))
         {
             retval = -EINVAL;
             goto out;
