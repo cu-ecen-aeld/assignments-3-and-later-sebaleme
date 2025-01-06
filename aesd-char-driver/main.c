@@ -126,43 +126,6 @@ void write_entry_into_buffer(struct aesd_dev *dev)
     }
 }
 
-// Prepare and call ioctl function command in char* 
-int run_ioctl_command(const char *p, struct file *filp, loff_t *f_pos)
-{
-    PDEBUG("Entering ioctl, working with %s", p);
-    int ret;
-    char *endptr;
-    struct aesd_seekto seekto;
-
-    // Now we are looking for X (command) and Y (offset)
-    // Parse the first number (X), look for the comma
-    endptr = strchr(p, ',');
-    if (!endptr) {
-        return -EFAULT;
-    }
-    // Temporarily terminate the string at the comma, retore after extracting X value
-    *endptr = '\0';
-    ret = kstrtouint(p, 10, &(seekto.write_cmd));
-    *endptr = ',';
-    if (ret) {
-        PDEBUG("Could not convert X value to an unsigned int");
-        return -EFAULT;
-    }
-
-    // Parse the second number (Y)
-    p = endptr + 1; // Move past the comma
-    ret = kstrtouint(p, 10, &(seekto.write_cmd_offset));
-    if (ret) {
-        PDEBUG("Could not convert Y value to an unsigned int");
-        return -EFAULT;
-    }
-
-    PDEBUG("Found X = %u and Y = %u", seekto.write_cmd, seekto.write_cmd_offset);
-
-    // Here we bypass the ioctl function, and directly update the f_pos pointer.
-    return aesd_adjust_file_offset(filp, f_pos, seekto.write_cmd, seekto.write_cmd_offset);
-}
-
 // System call implementation
 int aesd_open(struct inode *inode, struct file *filp)
 {
@@ -248,8 +211,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 {
     ssize_t retval = -ENOMEM;
     struct aesd_dev *dev = filp->private_data;
-    const char *prefix = "AESDCHAR_IOCSEEKTO:";
-    char *p;
     int newSize;
     PDEBUG("Request write %zu bytes with offset %lld",count,*f_pos);
 
@@ -259,28 +220,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     // Allocate more than required so we can reuse the heap memory for partial write case later
     newSize = count+dev->entry.size;
     char* newString = kmalloc(newSize,GFP_KERNEL);
-
-    // Check if received buffer contains an IOCTL request
-    if (copy_from_user(newString, buf, count)) {
-        retval = -EINVAL;
-        goto out;
-    }
-    if (strstr(newString, prefix) != NULL) {
-        PDEBUG("The request is a IOCTL command to set the read pointer");
-        // Add a null terminator at the string end as required by kstrtouint
-        newString[count] = "\0";
-
-        // Move past the prefix
-        p = newString + strlen(prefix);
-        if(run_ioctl_command(p, filp, f_pos))
-        {
-            retval = -EINVAL;
-            goto out;
-        }
-        // Set the proper value to avoid being called again
-        retval = count;
-        goto out;
-    }
 
     // We have 4 uses cases here.
     // Cases with empty entry buffer:

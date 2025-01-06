@@ -13,6 +13,7 @@
 #include <syslog.h>
 #include <time.h>
 
+#include "../aesd-char-driver/aesd_ioctl.h"
 #include "aesdsocket.h"
 #include "queue_bsd.h"
 
@@ -64,9 +65,43 @@ void* timestamp_func(void* thread_ts_param)
     return thread_ts_param;
 }
 
+// Prepare and execute ioctl syscall
+int run_ioctl_command(const char *p, int fd)
+{
+    syslog(LOG_INFO, "Entering ioctl, working with %s\n", p);
+    char *endptr;
+    struct aesd_seekto seekto;
+
+    // Now we are looking for X (command) and Y (offset)
+    errno = 0;  // Clear errno before the call
+    seekto.write_cmd = strtoul(p, &endptr, 10);
+    if (errno == ERANGE)
+    {
+        errno = 0;
+        syslog(LOG_ERR, "Could not convert X value to an unsigned int");
+    }
+
+    // Parse the second number (Y)
+    p = endptr + 1; // Move past the comma
+    seekto.write_cmd_offset = strtoul(p, &endptr, 10);
+    if (errno == ERANGE)
+    {
+        errno = 0;
+        syslog(LOG_ERR, "Could not convert Y value to an unsigned int");
+    }
+
+    syslog(LOG_INFO,"Found X = %u and Y = %u", seekto.write_cmd, seekto.write_cmd_offset);
+
+    // Here we bypass the ioctl function, and directly update the f_pos pointer.
+    return ioctl(fd, AESDCHAR_IOCSEEKTO, &seekto);
+}
+
 /// Thread processes new transmission
 void* threadfunc(void* thread_param)
 {
+    int fd;
+    char *p;
+    const char *prefix = "AESDCHAR_IOCSEEKTO:";
     clock_t start = clock();
 
     // Cast input param back to a useful type
@@ -112,28 +147,50 @@ void* threadfunc(void* thread_param)
             syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
             break;
         }
-        int written_bytes = fwrite(buffer, sizeof(char), bytes_num, file);
-        // Assignment9: do not close the file between write and read.
-        //fclose(file);
-        //release_mutex(data->file_mutex);
-        syslog(LOG_INFO, "Received %d bytes, wrote %d bytes into target file\n", bytes_num, written_bytes);
 
-        // If new line character, this is the last package and send the answer
-        if(memchr(buffer, '\n', bytes_num) != NULL) {
-            // Prepare sendBuffer, containing the answer to the client
+        // If received string is an IOCTL, special handling. In particular, do not close file
+        // between ioctl request and read action
+        if (strstr(buffer, prefix) != NULL) {
+            syslog(LOG_INFO, "The request is a IOCTL command to set the read pointer");
+
+            // Move past the prefix and run the ioctl command
+            p = buffer + strlen(prefix);
+            fd = fileno(file);
+            run_ioctl_command(p, fd);
+
+            // Then read the content, close the file and release the mutex
             char sendBuffer[MAX_BUFFER_SIZE] = {0};
-            //get_mutex(data->file_mutex);
-            //FILE *fileRead = fopen(FILEPATH, "r");
             int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, file);
             fclose(file);
             release_mutex(data->file_mutex);
             // Send the full received content as acknowledgement
             int bytes_sent = send(data->fd, sendBuffer, read_bytes, 0);
             syslog(LOG_INFO, "Read %d bytes in local file, sent %d bytes as acknowledgement, ||%s||\n", read_bytes, bytes_sent, sendBuffer);
-            if (bytes_sent == -1)
-            {
-                syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
-                break;
+        }
+        else
+        {
+            int written_bytes = fwrite(buffer, sizeof(char), bytes_num, file);
+            fclose(file);
+            release_mutex(data->file_mutex);
+            syslog(LOG_INFO, "Received %d bytes, wrote %d bytes into target file\n", bytes_num, written_bytes);
+
+            // If new line character, this is the last package and send the answer
+            if(memchr(buffer, '\n', bytes_num) != NULL) {
+                // Prepare sendBuffer, containing the answer to the client
+                char sendBuffer[MAX_BUFFER_SIZE] = {0};
+                get_mutex(data->file_mutex);
+                FILE *fileRead = fopen(FILEPATH, "r");
+                int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, file);
+                fclose(fileRead);
+                release_mutex(data->file_mutex);
+                // Send the full received content as acknowledgement
+                int bytes_sent = send(data->fd, sendBuffer, read_bytes, 0);
+                syslog(LOG_INFO, "Read %d bytes in local file, sent %d bytes as acknowledgement, ||%s||\n", read_bytes, bytes_sent, sendBuffer);
+                if (bytes_sent == -1)
+                {
+                    syslog(LOG_ERR, "Value of errno attempting to send data to %d.%d.%d.%d: %d\n", client_ip[0], client_ip[1], client_ip[2], client_ip[3], errno);
+                    break;
+                }
             }
         }
     }
