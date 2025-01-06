@@ -271,6 +271,9 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     }
     if (strstr(newString, prefix) != NULL) {
         PDEBUG("The request is a IOCTL command to set the read pointer");
+        // Add a null terminator at the string end as required by kstrtouint
+        newString[count] = "\0";
+
         // Move past the prefix
         p = newString + strlen(prefix);
         retval = run_ioctl_command(p, filp);
