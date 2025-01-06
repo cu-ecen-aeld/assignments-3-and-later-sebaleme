@@ -113,18 +113,19 @@ void* threadfunc(void* thread_param)
             break;
         }
         int written_bytes = fwrite(buffer, sizeof(char), bytes_num, file);
-        fclose(file);
-        release_mutex(data->file_mutex);
+        // Assignment9: do not close the file between write and read.
+        //fclose(file);
+        //release_mutex(data->file_mutex);
         syslog(LOG_INFO, "Received %d bytes, wrote %d bytes into target file\n", bytes_num, written_bytes);
 
         // If new line character, this is the last package and send the answer
         if(memchr(buffer, '\n', bytes_num) != NULL) {
             // Prepare sendBuffer, containing the answer to the client
             char sendBuffer[MAX_BUFFER_SIZE] = {0};
-            get_mutex(data->file_mutex);
-            FILE *fileRead = fopen(FILEPATH, "r");
-            int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, fileRead);
-            fclose(fileRead);
+            //get_mutex(data->file_mutex);
+            //FILE *fileRead = fopen(FILEPATH, "r");
+            int read_bytes = fread(sendBuffer, sizeof(char), MAX_BUFFER_SIZE, file);
+            fclose(file);
             release_mutex(data->file_mutex);
             // Send the full received content as acknowledgement
             int bytes_sent = send(data->fd, sendBuffer, read_bytes, 0);
