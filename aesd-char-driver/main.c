@@ -60,13 +60,14 @@ int checkEOLChar(const char* buff, const int size)
 // @return 0 if successful, negative if error occured
 int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t write_cmd_offset)
 {
+    PDEBUG("Adjusting file offset with: %u and offset %u", write_cmd, write_cmd_offset);
     int retval = 0;
     int i;
     size_t size_offset = 0;
     struct aesd_dev *dev;
 
     if(write_cmd > AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED){
-        PDEBUG("Write command is outside the range of the circular buffer: %u ", write_cmd);
+        PDEBUG("Write command is outside the range of the circular buffer");
         return -EINVAL;
     }
 
@@ -88,7 +89,7 @@ int aesd_adjust_file_offset(struct file *filp, uint32_t write_cmd, uint32_t writ
 
     // Set f_pos to the requested position
     filp->f_pos = size_offset + write_cmd_offset;
-
+    PDEBUG("File offset set to: %lld", filp->f_pos);
     mutex_unlock(&dev->lock);
     return retval;
 }
@@ -360,7 +361,8 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     switch(cmd) {
 
       case AESDCHAR_IOCSEEKTO:
-        if(copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)) != 0) {
+        if(copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto))) {
+            PDEBUG("Failed to copy from user, returns %ld", copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)));
             retval = EFAULT;
         } else {
             retval = aesd_adjust_file_offset(filp, seekto.write_cmd, seekto.write_cmd_offset);
