@@ -271,7 +271,13 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
         // Move past the prefix
         p = newString + strlen(prefix);
-        retval = run_ioctl_command(p, filp);
+        if(run_ioctl_command(p, filp))
+        {
+            retval = -EINVAL;
+            goto out;
+        }
+        // Set the proper value to avoid being called again
+        retval = count;
         goto out;
     }
 
@@ -319,6 +325,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
   out:
     mutex_unlock(&dev->lock);
     PDEBUG("%zd bytes were written, new total size is %lu",retval, dev->size);
+    // In blocking mode (default), returning 0 or less than count causes retries (partial write)
     return retval;
 }
 
