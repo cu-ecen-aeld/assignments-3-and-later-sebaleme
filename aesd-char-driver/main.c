@@ -360,7 +360,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     switch(cmd) {
 
       case AESDCHAR_IOCSEEKTO:
-        if(copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto))) {
+        if(copy_from_user(&seekto, (const struct aesd_seekto __user *)arg, sizeof(seekto))) {
             PDEBUG("Failed to copy from user, returns %ld", copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)));
             PDEBUG("sizeof(seekto) = %zu", sizeof(seekto));
             retval = EFAULT;
