@@ -135,7 +135,7 @@ int run_ioctl_command(const char *p, struct file *filp)
     PDEBUG("Entering ioctl, working with %s", p);
     int ret;
     char *endptr;
-    unsigned int *x_command, *y_command;
+    unsigned int x_command, y_command;
 
     // Now we are looking for X (command) and Y (offset)
     // Parse the first number (X), look for the comma
@@ -145,7 +145,7 @@ int run_ioctl_command(const char *p, struct file *filp)
     }
     // Temporarily terminate the string at the comma, retore after extracting X value
     *endptr = '\0';
-    ret = kstrtouint(p, 10, x_command);
+    ret = kstrtouint(p, 10, &x_command);
     *endptr = ',';
     if (ret) {
         PDEBUG("Could not convert X value to an unsigned int");
@@ -154,14 +154,14 @@ int run_ioctl_command(const char *p, struct file *filp)
 
     // Parse the second number (Y)
     p = endptr + 1; // Move past the comma
-    ret = kstrtouint(p, 10, y_command);
+    ret = kstrtouint(p, 10, &y_command);
     if (ret) {
         PDEBUG("Could not convert Y value to an unsigned int");
         return -EFAULT;
     }
 
-    PDEBUG("Found X = %u and Y = %u", *x_command, *y_command);
-    aesd_ioctl(filp, *x_command, *y_command);
+    PDEBUG("Found X = %u and Y = %u", x_command, y_command);
+    aesd_ioctl(filp, x_command, y_command);
     return 0;
 }
 
