@@ -163,8 +163,7 @@ int run_ioctl_command(const char *p, struct file *filp)
 
     PDEBUG("Found X = %u and Y = %u", seekto.write_cmd, seekto.write_cmd_offset);
     // Beware of not confusing the ioctl command, param2, and the SEEKTO command, which is part of param3
-    aesd_ioctl(filp, AESDCHAR_IOCSEEKTO, (unsigned long)&seekto);
-    return 0;
+    return aesd_ioctl(filp, AESDCHAR_IOCSEEKTO, (unsigned long)&seekto);
 }
 
 // System call implementation
@@ -363,6 +362,7 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
       case AESDCHAR_IOCSEEKTO:
         if(copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto))) {
             PDEBUG("Failed to copy from user, returns %ld", copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)));
+            PDEBUG("sizeof(seekto) = %zu", sizeof(seekto));
             retval = EFAULT;
         } else {
             retval = aesd_adjust_file_offset(filp, seekto.write_cmd, seekto.write_cmd_offset);
