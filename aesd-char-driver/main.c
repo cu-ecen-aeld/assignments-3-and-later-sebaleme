@@ -135,7 +135,7 @@ int run_ioctl_command(const char *p, struct file *filp)
     PDEBUG("Entering ioctl, working with %s", p);
     int ret;
     char *endptr;
-    unsigned int x_command, y_command;
+    struct aesd_seekto seekto;
 
     // Now we are looking for X (command) and Y (offset)
     // Parse the first number (X), look for the comma
@@ -145,7 +145,7 @@ int run_ioctl_command(const char *p, struct file *filp)
     }
     // Temporarily terminate the string at the comma, retore after extracting X value
     *endptr = '\0';
-    ret = kstrtouint(p, 10, &x_command);
+    ret = kstrtouint(p, 10, &(seekto.write_cmd));
     *endptr = ',';
     if (ret) {
         PDEBUG("Could not convert X value to an unsigned int");
@@ -154,14 +154,15 @@ int run_ioctl_command(const char *p, struct file *filp)
 
     // Parse the second number (Y)
     p = endptr + 1; // Move past the comma
-    ret = kstrtouint(p, 10, &y_command);
+    ret = kstrtouint(p, 10, &(seekto.write_cmd_offset));
     if (ret) {
         PDEBUG("Could not convert Y value to an unsigned int");
         return -EFAULT;
     }
 
-    PDEBUG("Found X = %u and Y = %u", x_command, y_command);
-    aesd_ioctl(filp, x_command, y_command);
+    PDEBUG("Found X = %u and Y = %u", seekto.write_cmd, seekto.write_cmd_offset);
+    // Beware of not confusing the ioctl command, param2, and the SEEKTO command, which is part of param3
+    aesd_ioctl(filp, AESDCHAR_IOCSEEKTO, (unsigned long)&seekto);
     return 0;
 }
 
@@ -271,7 +272,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         PDEBUG("The request is a IOCTL command to set the read pointer");
         // Move past the prefix
         p = newString + strlen(prefix);
-        run_ioctl_command(p, filp);
+        retval = run_ioctl_command(p, filp);
+        goto out;
     }
 
     // We have 4 uses cases here.
