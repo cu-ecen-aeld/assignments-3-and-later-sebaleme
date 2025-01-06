@@ -162,8 +162,9 @@ int run_ioctl_command(const char *p, struct file *filp)
     }
 
     PDEBUG("Found X = %u and Y = %u", seekto.write_cmd, seekto.write_cmd_offset);
-    // Beware of not confusing the ioctl command, param2, and the SEEKTO command, which is part of param3
-    return aesd_ioctl(filp, AESDCHAR_IOCSEEKTO, (unsigned long)&seekto);
+
+    // Here we bypass the ioctl function, and directly update the f_pos pointer.
+    return aesd_adjust_file_offset(filp, seekto.write_cmd, seekto.write_cmd_offset);
 }
 
 // System call implementation
@@ -345,6 +346,9 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence)
 
 
 // The ioctl() implementation
+// Beware of not confusing the ioctl command, cmd, and the SEEKTO command, which is part of arg
+// aesd_ioctl can only be called from user space, because copy_from_user will fail if the arg pointer
+// is pointing to kernel memory
 long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
     long retval = 0;
@@ -360,9 +364,8 @@ long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     switch(cmd) {
 
       case AESDCHAR_IOCSEEKTO:
-        if(copy_from_user(&seekto, (const struct aesd_seekto __user *)arg, sizeof(seekto))) {
-            PDEBUG("Failed to copy from user, returns %ld", copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto)));
-            PDEBUG("sizeof(seekto) = %zu", sizeof(seekto));
+        if(copy_from_user(&seekto, (const void __user *)arg, sizeof(seekto))) {
+            PDEBUG("Failed to copy from user");
             retval = EFAULT;
         } else {
             retval = aesd_adjust_file_offset(filp, seekto.write_cmd, seekto.write_cmd_offset);
