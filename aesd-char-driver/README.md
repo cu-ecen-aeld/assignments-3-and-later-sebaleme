@@ -33,3 +33,19 @@ Using "dmesg -c" clear the kernel logging buffer
 DD Util:
  - bs option for dd is mandatory, without that it tries to read blocks. Using 1 means it read one byte at a time
  - If aesdchar is empty, dd will return:  dd: /dev/aesdchar: cannot skip: Invalid argument
+
+# System calls in assignment 9
+
+User-Space Context:
+    In user space, nc operates as both a writer and a reader.
+    After sending data to the device (via the write system call), nc expects to read a response (via the read system call).
+    nc waits for the kernel to produce output, which triggers the kernel’s read function.
+
+Kernel-Space Context:
+    echo ${string} triggers the write() function in the kernel module when data is sent to the device or socket.
+    Once the kernel module processes the input, the user-space nc process issues a read() call, asking for the response.
+    This read() system call invokes the read() function in your device driver.
+
+The flow looks like this:
+    echo → Kernel write() function (processes input)
+    nc → Kernel read() function (retrieves response)
