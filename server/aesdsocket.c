@@ -174,11 +174,21 @@ void* threadfunc(void* thread_param)
             // Reset file position if file was writen
             if (!is_ioctl)
             {
+                // Flush the FILE* buffer to ensure all writes are committed
+                // Otherwise, the lseek can occur before the write
+                // Mixing high-level FILE* operations with low-level file descriptor operations (like lseek) 
+                // can lead to lack of synchronisation between the fwrite and the lseek
+                if (fflush(file) != 0) {
+                    syslog(LOG_ERR, "Failed to flush the file buffer: %d\n", errno);
+                    break;
+                }
                 if (lseek(fd, 0, SEEK_SET) == -1)
                 {
                     syslog(LOG_ERR, "Value of errno attempting to");
                     break;
                 }
+                // Reset the FILE* stream's internal position indicator
+                rewind(file);
             }
             // Prepare sendBuffer, containing the answer to the client
             char sendBuffer[MAX_BUFFER_SIZE] = {0};
