@@ -145,7 +145,7 @@ void* threadfunc(void* thread_param)
         // Open file and generate file descriptor
         // We open the file only once, and keep the file descriptor for the read action
         // If the file was written (is_ioctl = false), we reset the offset pointer
-        FILE *file = fopen(FILEPATH, "a");
+        FILE *file = fopen(FILEPATH, "a+");
         if (file == NULL)
         {
             syslog(LOG_ERR, "Value of errno attempting to open file %s: %d\n", FILEPATH, errno);
